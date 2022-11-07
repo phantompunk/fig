@@ -138,6 +138,7 @@ go.work
 
 # End of https://www.toptal.com/developers/gitignore/api/go
 # Created by https://www.toptal.com/developers/gitignore/api/vscode
+.vscode
 # Edit at https://www.toptal.com/developers/gitignore?templates=vscode
 
 #!! ERROR: vscode is undefined. Use list command to see defined gitignore types !!#
