@@ -148,7 +148,7 @@
 // fonts/usaflag.flf
 // fonts/wavy.flf
 // fonts/weird.flf
-package stencil
+package font
 
 import (
 	"bytes"

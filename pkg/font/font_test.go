@@ -1,4 +1,4 @@
-package stencil
+package font
 
 import (
 	"bufio"
@@ -48,7 +48,7 @@ func TestSetFontAttributes(t *testing.T) {
 	fontMetadata := "flf2a$ 5 4 20 0 16"
 
 	// When
-	font := &font{}
+	font := &Font{}
 	scanner := bufio.NewScanner(strings.NewReader(fontMetadata))
 	font.SetAttributes(scanner)
 
@@ -76,7 +76,7 @@ func TestSetFontChar(t *testing.T) {
 }
 
 func TestSetFontLetters(t *testing.T) {
-	font := &font{comments: 16, height: 5}
+	font := &Font{comments: 16, height: 5}
 	fontBytes, _ := Asset(path.Join("fonts", "drpepper.flf"))
 	bytesReader := bytes.NewReader(fontBytes)
 	scanner := bufio.NewScanner(bytesReader)

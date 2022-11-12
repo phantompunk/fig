@@ -3,6 +3,8 @@ package stencil
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/phantompunk/stencil/pkg/font"
 )
 
 // var charA = `
@@ -51,17 +53,17 @@ import (
 // |  |		Row 2
 type Stencil struct {
 	phrase string
-	font   font
+	font   *font.Font
 }
 
 func NewStencil(phrase, fontName string) *Stencil {
 	// if len(font) == 0 {
 	// 	font = "drpepper"
 	// }
-	font := NewFont(fontName)
+	font := font.NewFont(fontName)
 	return &Stencil{
 		phrase: phrase,
-		font:   *font,
+		font:   font,
 	}
 }
 
@@ -76,10 +78,10 @@ func (st *Stencil) DrawText() {
 	// 	}
 	// }
 	regexp, _ := regexp.Compile(`@`)
-	for p := 0; p <= st.font.height-1; p++ {
+	for p := 0; p <= st.font.GetHeight()-1; p++ {
 		for _, c := range st.phrase {
 			charValue := int(rune(c)) - 31
-			fmt.Print(regexp.ReplaceAllString(st.font.letters[charValue][p], ""))
+			fmt.Print(regexp.ReplaceAllString(st.font.GetLetters()[charValue][p], ""))
 		}
 		fmt.Println()
 	}

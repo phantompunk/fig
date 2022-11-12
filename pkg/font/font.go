@@ -1,4 +1,4 @@
-package stencil
+package font
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-type font struct {
+type Font struct {
 	name      string
 	hardblank string
 	height    int
@@ -24,11 +24,11 @@ func check(e error) {
 	}
 }
 
-func NewFont(fontName string) *font {
+func NewFont(fontName string) *Font {
 	if len(fontName) == 0 {
 		fontName = DEFAULT_FONT
 	}
-	ft := &font{}
+	ft := &Font{}
 	ft.name = fontName
 
 	// fontPath := filepath.Join("..", "fonts", fontName+".flf")
@@ -76,6 +76,10 @@ func setHeight(metadata string) int {
 	return d
 }
 
+func (f *Font) GetHeight() int {
+	return f.height
+}
+
 func setComments(metadata string) int {
 	comments, _ := strconv.Atoi(strings.Split(metadata, " ")[5])
 	return comments
@@ -87,7 +91,7 @@ func setHardBlank(metadata string) string {
 	return string(blank)
 }
 
-func (f *font) SetAttributes(scanner *bufio.Scanner) {
+func (f *Font) SetAttributes(scanner *bufio.Scanner) {
 	scanner.Scan()
 	metadata := scanner.Text()
 	f.hardblank = setHardBlank(metadata)
@@ -95,7 +99,7 @@ func (f *font) SetAttributes(scanner *bufio.Scanner) {
 	f.comments = setComments(metadata)
 }
 
-func (f *font) ParseChar(char string) {
+func (f *Font) ParseChar(char string) {
 	// letter := make([][]string, f.height)
 	// charValue := int(rune(char[0]))
 	// start := 1 + f.comments + (charValue-32)*5
@@ -109,7 +113,7 @@ func (f *font) ParseChar(char string) {
 
 }
 
-func (f *font) SetLetters(scanner *bufio.Scanner) {
+func (f *Font) SetLetters(scanner *bufio.Scanner) {
 	f.letters = append(f.letters, make([]string, f.height))
 	// fmt.Print(f.letters)
 	// f.letters[0] = []string{` ____@`}
@@ -138,4 +142,8 @@ func (f *font) SetLetters(scanner *bufio.Scanner) {
 			f.letters = append(f.letters, []string{})
 		}
 	}
+}
+
+func (f *Font) GetLetters() [][]string {
+	return f.letters
 }

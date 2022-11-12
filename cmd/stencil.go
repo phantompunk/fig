@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/phantompunk/stencil/stencil"
+	"github.com/phantompunk/stencil/pkg/stencil"
 )
 
 func main() {
