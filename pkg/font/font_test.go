@@ -40,22 +40,19 @@ var testFonts = []struct {
 }
 
 func TestNewFonts(t *testing.T) {
-	for _, testCase := range testFonts {
-		steps := NewFont(testCase.name)
-		if steps.name != testCase.name {
-			t.Fatal("Failed name")
-		}
-		if steps.height != testCase.height {
-			t.Fatal("Failed height")
-		}
-		if steps.comments != testCase.comments {
-			t.Fatal("Failed comments")
-		}
-		if steps.hardblank != testCase.hardblank {
-			t.Fatal("Failed hardblank")
-		}
-
-		t.Logf("PASS:")
+	for _, test := range testFonts {
+		t.Run(fmt.Sprintf("Font:%s", test.name), func(t *testing.T) {
+			actual := NewFont(test.name)
+			if actual.height != test.height {
+				t.Errorf("Expected: %d, actual: %d", test.height, actual.height)
+			}
+			if actual.comments != test.comments {
+				t.Errorf("Expected: %d, actual: %d", test.comments, actual.comments)
+			}
+			if actual.hardblank != test.hardblank {
+				t.Errorf("Expected: %s, actual: %s", test.hardblank, actual.hardblank)
+			}
+		})
 	}
 }
 
