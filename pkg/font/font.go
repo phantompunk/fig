@@ -31,42 +31,14 @@ func NewFont(fontName string) *Font {
 	ft := &Font{}
 	ft.name = fontName
 
-	// fontPath := filepath.Join("..", "fonts", fontName+".flf")
-	// if _, err := os.Stat(fontPath); err != nil {
-	// 	logrus.Fatal("Font not found", err)
-	// }
 	fontBytes, _ := Asset(path.Join("fonts", fontName+".flf"))
 
 	bytesReader := bytes.NewReader(fontBytes)
-	// f, err := os.Open(fontPath)
-	// check(err)
-	// defer f.Close()
-
-	// reader := read
 	scanner := bufio.NewScanner(bytesReader)
 	scanner.Split(bufio.ScanLines)
-	// var lines []string
-	// for scanner.Scan() {
-	// 	lines = append(lines, scanner.Text())
-	// }
 
 	ft.SetAttributes(scanner)
 	ft.SetLetters(scanner)
-	// _ @
-	// / |@
-	// | |@
-	// |_|@
-	//    @@
-	// fmt.Print(lines[102])
-	// fmt.Println(lines[142])
-	// fmt.Print(lines[103])
-	// fmt.Println(lines[143])
-	// fmt.Print(lines[104])
-	// fmt.Println(lines[144])
-	// fmt.Print(lines[105])
-	// fmt.Println(lines[145])
-	// fmt.Print(lines[106])
-	// fmt.Println(lines[146])
 	return ft
 }
 
@@ -100,27 +72,10 @@ func (f *Font) SetAttributes(scanner *bufio.Scanner) {
 }
 
 func (f *Font) ParseChar(char string) {
-	// letter := make([][]string, f.height)
-	// charValue := int(rune(char[0]))
-	// start := 1 + f.comments + (charValue-32)*5
-
-	// // letter = append(letter, char)
-	// // fmt.Printf("%d", char[0])
-	// logrus.Infof("Parsing Char: %c, %d", char[0], char[0])
-	// for _, letter := range char {
-	// 	logrus.Infof("%c", letter)
-	// }
-
 }
 
 func (f *Font) SetLetters(scanner *bufio.Scanner) {
 	f.letters = append(f.letters, make([]string, f.height))
-	// fmt.Print(f.letters)
-	// f.letters[0] = []string{` ____@`}
-	// f.letters[1] = []string{`|_  /@`}
-	// f.letters[2] = []string{` / / @`}
-	// f.letters[3] = []string{`/___|@`}
-	// f.letters[4] = []string{`    @@`}
 
 	for i := 0; i <= f.comments-1; i++ {
 		scanner.Scan()
