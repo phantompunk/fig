@@ -3,6 +3,7 @@ package font
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -24,22 +25,26 @@ func check(e error) {
 	}
 }
 
-func NewFont(fontName string) *Font {
+func NewFont(fontName string) (*Font, error) {
 	if len(fontName) == 0 {
 		fontName = DEFAULT_FONT
 	}
-	ft := &Font{}
-	ft.name = fontName
 
-	fontBytes, _ := Asset(path.Join("fonts", fontName+".flf"))
+	fontBytes, err := Asset(path.Join("fonts", fmt.Sprintf("%s.flf", fontName)))
+	if err != nil {
+		return nil, err
+	}
 
 	bytesReader := bytes.NewReader(fontBytes)
 	scanner := bufio.NewScanner(bytesReader)
 	scanner.Split(bufio.ScanLines)
 
+	ft := &Font{}
+
+	ft.name = fontName
 	ft.SetAttributes(scanner)
 	ft.SetLetters(scanner)
-	return ft
+	return ft, nil
 }
 
 func setHeight(metadata string) int {
@@ -80,7 +85,7 @@ func (f *Font) SetLetters(scanner *bufio.Scanner) {
 	for i := 0; i <= f.comments-1; i++ {
 		scanner.Scan()
 	}
-	f.letters = append(f.letters, make([]string, f.height, f.height))
+	f.letters = append(f.letters, make([]string, f.height))
 	for i := range f.letters[0] {
 		f.letters[0][i] = "  "
 	}

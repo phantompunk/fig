@@ -12,12 +12,15 @@ type Stencil struct {
 	font   *font.Font
 }
 
-func NewStencil(phrase, fontName string) *Stencil {
-	font := font.NewFont(fontName)
+func NewStencil(phrase, fontName string) (*Stencil, error) {
+	font, err := font.NewFont(fontName)
+	if err != nil {
+		return nil, err
+	}
 	return &Stencil{
 		phrase: phrase,
 		font:   font,
-	}
+	}, nil
 }
 
 func (st *Stencil) DrawText() {
