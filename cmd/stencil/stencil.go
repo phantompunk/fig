@@ -1,40 +1,35 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
 	"github.com/phantompunk/stencil/pkg/stencil"
+	"github.com/spf13/cobra"
 )
 
+var stencilCmd = &cobra.Command{
+	Use: "stencil",
+	Short: "stencil renders figlet fonts",
+	Run: func (cmd *cobra.Command, args []string){
+		font := args[1]
+		phrase := args[0]
+		st, err := stencil.NewStencil(phrase, font)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		st.DrawText()
+	},
+}
+
 func main() {
-	params := os.Args[1:]
-
-	fontname := ""
-	phrase := params[0]
-	if len(params) >= 2 {
-		fontname = params[1]
+	if err := stencilCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	st, err := stencil.NewStencil(phrase, fontname)
-	if err != nil {
-		errAndExit(err.Error())
-	}
-	st.DrawText()
-
 }
 
-func usageAndExit(msg string) {
-	if msg != "" {
-		fmt.Fprint(os.Stderr, msg)
-		fmt.Fprintf(os.Stderr, "\n")
-	}
-
-	flag.Usage()
-	os.Exit(0)
+func init() {
 }
 
-func errAndExit(msg string) {
-	fmt.Fprint(os.Stderr, msg, "\n")
-	os.Exit(1)
-}
