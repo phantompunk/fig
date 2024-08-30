@@ -2,7 +2,6 @@ package stencil
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/phantompunk/stencil/pkg/font"
 )
@@ -24,11 +23,15 @@ func NewStencil(phrase, fontName string) (*Stencil, error) {
 }
 
 func (st *Stencil) DrawText() {
-	regexp, _ := regexp.Compile(`@`)
+	// regexp, _ := regexp.Compile(`@`)
 	for p := 0; p <= st.font.GetHeight()-1; p++ {
 		for _, c := range st.phrase {
 			charValue := int(rune(c)) - 31
-			fmt.Print(regexp.ReplaceAllString(st.font.GetLetters()[charValue][p], ""))
+			parse := st.font.GetLetters()[charValue][p]
+			fmt.Print(parse)
+			// parse1 := strings.ReplaceAll(regexp.ReplaceAllString(st.font.GetLetters()[charValue][p], ""), "$", " ")
+			// parse2 := strings.ReplaceAll(parse1, "#", "")
+			// fmt.Print(parse2)
 		}
 		fmt.Println()
 	}

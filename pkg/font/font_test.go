@@ -35,6 +35,20 @@ var testFonts = []struct {
 	},
 }
 
+var testLetters = []struct {
+	name     string
+	letter   rune
+	expected string
+	part     int
+}{
+	{
+		name:     "fuzzy",
+		letter:   'W',
+		expected: ": :: :: :",
+		part:     2,
+	},
+}
+
 func TestNewFonts(t *testing.T) {
 	for _, test := range testFonts {
 		t.Run(fmt.Sprintf("Font:%s", test.name), func(t *testing.T) {
@@ -63,6 +77,28 @@ func TestInvalidFontName(t *testing.T) {
 	if invalidFont != nil || err == nil {
 		t.Error("Expected an error")
 	}
+}
+
+func TestFontParsing(t *testing.T) {
+	for _, test := range testLetters {
+		letter := int(rune(test.letter))-31 // lower case g
+		t.Run(fmt.Sprintf("Font:%s", test.name), func(t *testing.T) {
+			testFont, _ := NewFont(test.name)
+			actual := testFont.GetLetters()[letter][test.part]
+			if actual != test.expected {
+				t.Errorf("Expected: %s, actual: %s", test.expected, actual)
+			}
+		})
+	}
+	// fontName := "fuzzy"
+	// fontFace, _ := NewFont(fontName)
+	// first := fontFace.GetLetters()[72][2]
+	// expected := " .--. @" // expected := "160"
+	// fmt.Println(first)
+	// fmt.Println(expected)
+	// if first != expected {
+	// 	t.Error("String did not match expected")
+	// }
 }
 
 // func TestSetFontChar(t *testing.T) {
