@@ -9,18 +9,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var fontface string
+
 var stencilCmd = &cobra.Command{
 	Use: "stencil",
 	Short: "stencil renders figlet fonts",
+	Run: func (cmd *cobra.Command, args []string) {
+		fmt.Println("Calling base")
+		// tui.Run()
+	},
 }
 
 var printCmd = &cobra.Command{
 	Use: "print",
 	Short: "print renders figlet fonts",
 	Run: func (cmd *cobra.Command, args []string){
-		font := args[1]
+		if len(args) == 0 {
+			fmt.Println("Needs a phrase")
+			os.Exit(1)
+		}
+
 		phrase := args[0]
-		st, err := stencil.NewStencil(phrase, font)
+		st, err := stencil.NewStencil(phrase, fontface)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -56,5 +66,6 @@ func main() {
 func init() {
 	stencilCmd.AddCommand(listCmd)
 	stencilCmd.AddCommand(printCmd)
+	stencilCmd.PersistentFlags().StringVarP(&fontface, "font", "f", "drpepper", "Figlet Font to use")
 }
 
