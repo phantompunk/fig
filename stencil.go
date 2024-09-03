@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/phantompunk/stencil/internal/tui"
 	"github.com/phantompunk/stencil/pkg/font"
 	"github.com/phantompunk/stencil/pkg/stencil"
 	"github.com/spf13/cobra"
@@ -16,6 +17,7 @@ var stencilCmd = &cobra.Command{
 	Short: "stencil renders figlet fonts",
 	Run: func (cmd *cobra.Command, args []string) {
 		fmt.Println("Calling base")
+		tui.Render()
 		// tui.Run()
 	},
 }
@@ -35,7 +37,8 @@ var printCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		st.DrawText()
+		// st.DrawText()
+		fmt.Println(st.Draw())
 	},
 }
 

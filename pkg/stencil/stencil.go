@@ -37,6 +37,22 @@ func (st *Stencil) DrawText() {
 	}
 }
 
+func (st *Stencil) Draw() string {
+	// regexp, _ := regexp.Compile(`@`)
+	drawing := ""
+	for p := 0; p <= st.font.GetHeight()-1; p++ {
+		for _, c := range st.phrase {
+			charValue := int(rune(c)) - 31
+			parse := st.font.GetLetters()[charValue][p]
+			drawing += parse
+			// parse1 := strings.ReplaceAll(regexp.ReplaceAllString(st.font.GetLetters()[charValue][p], ""), "$", " ")
+			// parse2 := strings.ReplaceAll(parse1, "#", "")
+			// fmt.Print(parse2)
+		}
+		drawing += "\n"
+	}
+	return drawing
+}
 // func assignChars(phrase, font string) []string {
 // 	var charArray = []string // [1,2,3]
 // 	for index, char := range phrase {
