@@ -83,9 +83,7 @@ func figFunc(cmd *cobra.Command, args []string) error {
 }
 
 func setVersion(cmd *cobra.Command) {
-	short := min(7, len(commit))
-	vt := cmd.VersionTemplate()
-
-	cmd.SetVersionTemplate(vt[:len(vt)-1] + " (" + commit[:short] + ")\n")
+	vt := fmt.Sprintf("%s version %s (%s)\n", "fig", version, commit)
+	cmd.SetVersionTemplate(vt)
 	cmd.Version = version
 }
