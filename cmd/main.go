@@ -9,7 +9,15 @@ import (
 	"syscall"
 
 	"github.com/phantompunk/fig"
+	"github.com/phantompunk/fig/internal/vcs"
 	"github.com/spf13/cobra"
+)
+
+var (
+	fontName  string
+	listFonts bool
+	version   string
+	commit    string
 )
 
 func main() {
@@ -38,27 +46,46 @@ func execute() error {
 }
 
 func initialize() *cobra.Command {
-	root := &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:  "fig",
 		RunE: figFunc,
 	}
 
-	return root
+	rootCmd.Flags().BoolVarP(&listFonts, "list-fonts", "l", false, "List all available fonts")
+	rootCmd.Flags().StringVarP(&fontName, "font", "f", "standard", "Specify a font, default is standard")
+
+	version, commit = vcs.Version()
+	setVersion(rootCmd)
+
+	return rootCmd
 }
 
 func figFunc(cmd *cobra.Command, args []string) error {
+	if listFonts {
+		fonts := fig.ListFonts()
+		fmt.Println("Supported fonts:", strings.Join(fonts, ", "))
+		return nil
+	}
+
 	if len(args) == 0 {
 		fmt.Println("TBD UI")
 		return nil
 	}
 
 	msg := strings.Join(args, "")
-
-	font, err := fig.Font("standard")
+	font, err := fig.Font(fontName)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println(font.Render(msg))
 	return nil
+}
+
+func setVersion(cmd *cobra.Command) {
+	short := min(7, len(commit))
+	vt := cmd.VersionTemplate()
+
+	cmd.SetVersionTemplate(vt[:len(vt)-1] + " (" + commit[:short] + ")\n")
+	cmd.Version = version
 }

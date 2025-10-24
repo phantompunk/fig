@@ -10,7 +10,7 @@ import (
 )
 
 //go:embed fonts/*.flf
-var figFonts embed.FS
+var figFS embed.FS
 
 type GlyphDict map[rune]Glyph
 
@@ -23,7 +23,7 @@ type FigFont struct {
 // fontloader takes an FS?
 // parse []byte
 func Font(name string) (*FigFont, error) {
-	data, err := figFonts.ReadFile("fonts/" + name + ".flf")
+	data, err := figFS.ReadFile("fonts/" + name + ".flf")
 	if err != nil {
 		return nil, err
 	}
