@@ -64,7 +64,7 @@ func parseFont(name string, data io.Reader) (*FigFont, error) {
 	font := NewFigFont(name, meta)
 	// parseCharacters
 	for charCode := 32; charCode <= 126; charCode++ {
-		char, err := readCharacter(scanner, meta.height)
+		char, err := readCharacter(scanner, meta.height, meta.hardBlank)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read character %d: %w", charCode, err)
 		}
@@ -116,6 +116,49 @@ func (p *headerParser) parseInt(i int, name string) int {
 	return v
 }
 
+// 1	Apply horizontal smushing rule 1 when smushing
+// 2	Apply horizontal smushing rule 2 when smushing
+// 4	Apply horizontal smushing rule 3 when smushing
+// 8	Apply horizontal smushing rule 4 when smushing
+// 16	Apply horizontal smushing rule 5 when smushing
+// 32	Apply horizontal smushing rule 6 when smushing
+// 64	Horizontal fitting (kerning) by default
+// 128	Horizontal smushing by default (Overrides 64)
+// 256	Apply vertical smushing rule 1 when smushing
+// 512	Apply vertical smushing rule 2 when smushing
+// 1024	Apply vertical smushing rule 3 when smushing
+// 2048	Apply vertical smushing rule 4 when smushing
+// 4096	Apply vertical smushing rule 5 when smushing
+// 8192	Vertical fitting by default
+// 16384	Vertical smushing by default (Overrides 8192)
+
+// Rule	Name	code value	Description
+// 1	EQUAL CHARACTER SMUSHING	1	Two sub-characters are smushed into a single sub-character if they are the same. This rule does not smush hardblanks. (See "Hardblanks" below.)
+// 2	UNDERSCORE SMUSHING	2	An underscore ("_") will be replaced by any of: "|", "/", "\", "[", "]", "{", "}", "(", ")", "<" or ">".
+// 3	HIERARCHY SMUSHING	4	A hierarchy of six classes is used: "|", "/\", "[]", "{}", "()", and "<>". When two smushing sub-characters are from different classes, the one from the latter class will be used.
+// 4	OPPOSITE PAIR SMUSHING	8	Smushes opposing brackets ("[]" or "]["), braces ("{}" or "}{") and parentheses ("()" or ")(") together, replacing any such pair with a vertical bar ("|").
+// 5	BIG X SMUSHING	16	Smushes "/\" into "|", "\/" into "Y", and "><" into "X". Note that "<>" is not smushed in any way by this rule. The name "BIG X" is historical; originally all three pairs were smushed into "X".
+// 6	HARDBLANK SMUSHING	32	Smushes two hardblanks together, replacing them with a single hardblank. (See "Hardblanks" below.)
+
+func parseSmushMode(layout int) SmushMode {
+	if layout < 0 {
+		return SmushMode{Enabled: true}
+	}
+
+	return SmushMode{
+		Enabled:         layout > 0,
+		EqualChar:       layout&1 != 0,
+		Underscore:      layout&2 != 0,
+		Hierarchy:       layout&4 != 0,
+		OppositePair:    layout&8 != 0,
+		BigX:            layout&16 != 0,
+		Hardblank:       layout&32 != 0,
+		HorizontalFit:   layout&64 != 0,
+		HorizontalSmush: layout&128 != 0,
+		// TODO: support vertical smushing
+	}
+}
+
 func parseHeader(header string) (Metadata, error) {
 	meta := Metadata{}
 
@@ -145,10 +188,11 @@ func parseHeader(header string) (Metadata, error) {
 		meta.codeTag = parser.parseInt(8, "code_tag")
 	}
 
+	meta.smushMode = parseSmushMode(meta.fullLayout)
 	return meta, parser.err
 }
 
-func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
+func readCharacter(scanner *bufio.Scanner, height int, hardBlank rune) (Glyph, error) {
 	lines := make([]string, height)
 	width := 0
 
@@ -158,6 +202,7 @@ func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
 		}
 
 		line := scanner.Text()
+		// line = strings.ReplaceAll(line, string(hardBlank), " ")
 
 		if i == height-1 {
 			line = line[:len(line)-2]

@@ -43,6 +43,44 @@ func TestParseHeader(t *testing.T) {
 	assert.Error(t, parser.err)
 }
 
+func TestParseSmushModes(t *testing.T) {
+	testcases := []struct {
+		name     string
+		input    int
+		expected SmushMode
+	}{
+		{
+			name:     "3x5",
+			input:    -1,
+			expected: SmushMode{Enabled: true},
+		},
+		{
+			name:     "o8",
+			input:    0,
+			expected: SmushMode{Enabled: false},
+		},
+		{
+			name:     "puffy",
+			input:    1,
+			expected: SmushMode{Enabled: true, EqualChar: true},
+		},
+		{
+			name:     "stop",
+			input:    15,
+			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true},
+		},
+		{
+			name:     "standard",
+			input:    24463,
+			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true, HorizontalSmush: true},
+		},
+	}
+	for _, tc := range testcases {
+		result := parseSmushMode(tc.input)
+		assert.Equal(t, tc.expected, result)
+	}
+}
+
 func TestParseGlyph(t *testing.T) {
 	input := `  __ #
  /  |#
@@ -53,7 +91,7 @@ func TestParseGlyph(t *testing.T) {
      ##`
 	expected := strings.ReplaceAll(input, "#", "")
 	scanner := bufio.NewScanner(strings.NewReader(input))
-	g, err := readCharacter(scanner, 7)
+	g, err := readCharacter(scanner, 7, '$')
 	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
 	assert.Nil(t, err)
 
@@ -65,7 +103,21 @@ func TestParseGlyph(t *testing.T) {
           @@`
 	expected = strings.ReplaceAll(input, "@", "")
 	scanner = bufio.NewScanner(strings.NewReader(input))
-	g, err = readCharacter(scanner, 6)
+	g, err = readCharacter(scanner, 6, '$')
+	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
+	assert.Nil(t, err)
+}
+
+func TestGlyphHardBlank(t *testing.T) {
+	input := `$@
+ $@
+ $@
+ $@
+ $@
+ $@@`
+	expected := strings.ReplaceAll(input, "@", "")
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	g, err := readCharacter(scanner, 6, '$')
 	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
 	assert.Nil(t, err)
 }

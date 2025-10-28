@@ -1,37 +1,88 @@
 package fig
 
-import (
-	"bufio"
-	"bytes"
-	"embed"
-	"fmt"
-	"strconv"
-	"strings"
-)
-
-//go:embed fonts/*.flf
-var figFS embed.FS
-
-type GlyphDict map[rune]Glyph
-
 type FigFont struct {
 	name     string
 	metadata Metadata
 	glyphs   GlyphDict
+	rules    []SmushRule
 }
 
-// fontloader takes an FS?
-// parse []byte
 func Font(name string) (*FigFont, error) {
-	data, err := figFS.ReadFile("fonts/" + name + ".flf")
-	if err != nil {
-		return nil, err
+	return loadFont(name)
+}
+
+func (f *FigFont) getGlyph(char rune) Glyph {
+	return f.glyphs[char]
+}
+
+func NewFigFont(name string, meta Metadata) *FigFont {
+	return &FigFont{
+		name:     name,
+		metadata: meta,
+		glyphs:   make(GlyphDict),
+		rules:    setRules(meta),
+	}
+}
+
+func setRules(meta Metadata) []SmushRule {
+	rules := []SmushRule{}
+	if meta.smushMode.EqualChar {
+		rules = append(rules, EqualChars)
 	}
 
-	// fmt.Println("Content: ", string(data))
-	font, err := parseFont(name, data)
-	return font, nil
+	if meta.smushMode.Underscore {
+		rules = append(rules, Underscore)
+	}
+
+	if meta.smushMode.Underscore {
+		rules = append(rules, Underscore)
+	}
+
+	if meta.smushMode.Hierarchy {
+		rules = append(rules, Heirarchy)
+	}
+
+	if meta.smushMode.OppositePair {
+		rules = append(rules, OppositePair)
+	}
+
+	if meta.smushMode.BigX {
+		rules = append(rules, BigX)
+	}
+
+	if meta.smushMode.Hardblank {
+		rules = append(rules, Hardblank)
+	}
+	return rules
 }
+
+type SmushMode struct {
+	Enabled           bool
+	HorizontalLayout  bool
+	HorizontalFit     bool // enable kerning
+	VerticalLayout    bool
+	VerticalFit       bool
+	HorizontalSmush   bool
+	VerticalSmush     bool
+	EqualChar         bool
+	Underscore        bool
+	Hierarchy         bool
+	OppositePair      bool
+	BigX              bool
+	Hardblank         bool
+	HorizontalKerning bool
+	HorizontalFull    bool
+	FullLayoutActive  bool
+}
+
+type VerticalMode struct{}
+
+type Glyph struct {
+	lines []string
+	width int
+}
+
+type GlyphDict map[rune]Glyph
 
 type Metadata struct {
 	signature      string
@@ -45,113 +96,16 @@ type Metadata struct {
 	fullLayout     int
 	codeTag        int
 	comments       string
-}
-
-type Glyph struct {
-	lines []string
-	width int
-}
-
-func parseFont(name string, data []byte) (*FigFont, error) {
-	reader := bytes.NewReader(data)
-	scanner := bufio.NewScanner(reader)
-
-	if !scanner.Scan() {
-		return nil, fmt.Errorf("empty font file")
-	}
-
-	// flf2a$ 6 4 6 -1 4
-	header := scanner.Text()
-	if !strings.HasPrefix(header, "flf2a") {
-		return nil, fmt.Errorf("unsupported font file")
-	}
-
-	font := &FigFont{name: name, glyphs: make(GlyphDict)}
-	meta := Metadata{}
-
-	parts := strings.Fields(header[5:])
-	if len(parts) < 6 {
-		return nil, fmt.Errorf("invalid header format")
-	}
-
-	meta.hardBlank = rune(header[5])
-	meta.height, _ = strconv.Atoi(parts[1])
-	meta.baseline, _ = strconv.Atoi(parts[2])
-	meta.maxLength, _ = strconv.Atoi(parts[3])
-	meta.oldLayout, _ = strconv.Atoi(parts[4])
-	meta.commentLines, _ = strconv.Atoi(parts[5])
-
-	if len(parts) > 6 {
-		meta.printDirection, _ = strconv.Atoi(parts[6])
-	}
-
-	if len(parts) > 7 {
-		meta.fullLayout, _ = strconv.Atoi(parts[7])
-	}
-
-	if len(parts) > 8 {
-		meta.codeTag, _ = strconv.Atoi(parts[8])
-	}
-
-	for range meta.commentLines {
-		if !scanner.Scan() {
-			return nil, fmt.Errorf("unexpected eof in comments")
-		}
-	}
-
-	for charCode := 32; charCode <= 126; charCode++ {
-		char, err := readCharacter(scanner, meta.height)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read character %d: %w", charCode, err)
-		}
-		font.glyphs[rune(charCode)] = char
-	}
-
-	font.metadata = meta
-	return font, nil
-}
-
-func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
-	lines := make([]string, height)
-	width := 0
-
-	for i := range height {
-		if !scanner.Scan() {
-			return Glyph{}, fmt.Errorf("unexpected end of file while reading characters")
-		}
-
-		line := scanner.Text()
-		line = strings.TrimRight(line, "@")
-		// fmt.Println("Line:", line)
-
-		width = max(width, len(line))
-		lines[i] = line
-	}
-
-	return Glyph{
-		lines: lines,
-		width: width,
-	}, nil
+	smushMode      SmushMode
+	verticalMode   VerticalMode
 }
 
 func (f *FigFont) Render(text string) string {
-	letters := make([]Glyph, len(text))
+	renderer := New(f)
+	return renderer.Render(text)
+}
 
-	for i, r := range text {
-		letters[i] = f.glyphs[r]
-	}
-
-	// letters[0].lines[0] + letters[1].lines[0] +	letters[2].lines[0] +
-	// letters[0].lines[1] + letters[1].lines[1] +	letters[2].lines[1] +
-	var result strings.Builder
-	for h := range f.metadata.height {
-		for _, l := range letters {
-			result.WriteString(l.lines[h])
-		}
-		if h < f.metadata.height-1 {
-			result.WriteString("\n")
-		}
-	}
-
-	return result.String()
+func (f *FigFont) RenderExp(text string) string {
+	renderer := New(f)
+	return renderer.RenderExp(text)
 }

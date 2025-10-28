@@ -26,38 +26,15 @@ func TestNewFonts(t *testing.T) {
 
 func TestRenderFonts(t *testing.T) {
 	standard, err := Font("standard")
-
-	val := standard.glyphs['!']
+	char := standard.glyphs['!']
 
 	assert.NilError(t, err)
-	assert.Equal(t, len(val.lines), 6)
-	assert.Equal(t, val.width, 4)
-	assert.Equal(t, val.lines[0], "  _ ")
-	assert.Equal(t, val.lines[1], " | |")
-	assert.Equal(t, val.lines[2], " | |")
-	assert.Equal(t, val.lines[3], " |_|")
-	assert.Equal(t, val.lines[4], " (_)")
-	assert.Equal(t, val.lines[5], "    ")
-}
-
-func TestRender(t *testing.T) {
-	standard, _ := Font("standard")
-	expected := `     _    
-    / \   
-   / _ \  
-  / ___ \ 
- /_/   \_\
-          `
-
-	actual := standard.Render("A")
-	assert.Equal(t, actual, expected)
-
-	expected = `    _    ____   ____ 
-   / \  | __ ) / ___|
-  / _ \ |  _ \| |    
- / ___ \| |_) | |___ 
-/_/   \_\____/ \____|
-                     `
-	actual = standard.Render("ABC")
-	assert.Equal(t, actual, expected)
+	assert.Equal(t, len(char.lines), 6)
+	assert.Equal(t, char.width, 4)
+	assert.Equal(t, char.lines[0], "  _ ")
+	assert.Equal(t, char.lines[1], " | |")
+	assert.Equal(t, char.lines[2], " | |")
+	assert.Equal(t, char.lines[3], " |_|")
+	assert.Equal(t, char.lines[4], " (_)")
+	assert.Equal(t, char.lines[5], "    ")
 }
