@@ -29,14 +29,14 @@ func TestRenderEx(t *testing.T) {
 			name:     "standard A",
 			fontName: "standard",
 			input:    "A",
-			expected: "    _    \n   / \\   \n  / _ \\  \n / ___ \\ \n/_/   \\_\\n         ",
+			expected: "    _    \n   / \\   \n  / _ \\  \n / ___ \\ \n/_/   \\_\\\n         ",
 		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			font, _ := loadFont(tc.fontName)
 			render := New(font)
-			assert.Equal(t, tc.expected, render.RenderExp(tc.input))
+			assert.Equal(t, tc.expected, render.Render(tc.input))
 		})
 	}
 }
@@ -114,12 +114,90 @@ func TestSmushModes(t *testing.T) {
 			result: SmushResult{')', true},
 			rule:   Heirarchy,
 		},
+		{
+			name:   "whitespace )",
+			input:  []rune{' ', ')'},
+			result: SmushResult{')', true},
+			rule:   Heirarchy,
+		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.rule(tc.input[0], tc.input[1])
 			assert.Equal(t, tc.result, result)
+		})
+	}
+}
+
+func TestIsSmushable(t *testing.T) {
+	testcases := []struct {
+		name     string
+		fontName string
+		input    []rune
+		expected bool
+	}{
+		{
+			name:     "3x5 AB",
+			fontName: "3x5",
+			input:    []rune{'A', 'B'},
+			expected: false,
+		},
+		{
+			name:     "standard HH",
+			fontName: "standard",
+			input:    []rune{'H', 'H'},
+			expected: true,
+		},
+		{
+			name:     "standard space",
+			fontName: "standard",
+			input:    []rune{' ', 'H'},
+			expected: true,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			font, _ := loadFont(tc.fontName)
+			render := New(font)
+			assert.Equal(t, tc.expected, render.isSmushable(tc.input[0], tc.input[1]))
+		})
+	}
+}
+
+func TestOverlap(t *testing.T) {
+	testcases := []struct {
+		name     string
+		fontName string
+		input    []rune
+		expected int
+	}{
+		{
+			name:     "3x5 AB",
+			fontName: "3x5",
+			input:    []rune{'A', 'B'},
+			expected: 0,
+		},
+		{
+			name:     "standard HH",
+			fontName: "standard",
+			input:    []rune{'H', 'H'},
+			expected: 14,
+		},
+		{
+			name:     "standard space",
+			fontName: "standard",
+			input:    []rune{' ', 'H'},
+			expected: 1,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			font, _ := loadFont(tc.fontName)
+			render := New(font)
+			left := font.getGlyph(tc.input[0])
+			right := font.getGlyph(tc.input[1])
+			assert.Equal(t, tc.expected, render.calculateOverlap(&left, &right))
 		})
 	}
 }

@@ -1,7 +1,6 @@
 package fig
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -26,26 +25,6 @@ func New(font *FigFont) *Renderer {
 }
 
 func (r *Renderer) Render(text string) string {
-	letters := make([]Glyph, len(text))
-
-	for i, char := range text {
-		letters[i] = r.font.glyphs[char]
-	}
-
-	var result strings.Builder
-	for h := range r.font.metadata.height {
-		for _, l := range letters {
-			result.WriteString(l.lines[h])
-		}
-		if h < r.font.metadata.height-1 {
-			result.WriteString("\n")
-		}
-	}
-
-	return result.String()
-}
-
-func (r *Renderer) RenderExp(text string) string {
 	lines := make([]string, r.font.metadata.height)
 
 	var prev *Glyph
@@ -53,8 +32,8 @@ func (r *Renderer) RenderExp(text string) string {
 		g := r.font.getGlyph(char)
 
 		if prev == nil {
-			copy(lines, g.lines)
-			prev = &g
+			prev = r.leftFlush(&g)
+			copy(lines, prev.lines)
 			continue
 		}
 
@@ -62,7 +41,7 @@ func (r *Renderer) RenderExp(text string) string {
 		lines = r.merge(lines, &g, overlap)
 		prev = &g
 	}
-	return strings.Join(lines, "\n")
+	return r.linesToString(lines)
 }
 
 func (r *Renderer) calculateOverlap(left, right *Glyph) int {
@@ -81,16 +60,21 @@ func (r *Renderer) canOverlap(left, right *Glyph, offset int) bool {
 		ll := []rune(left.lines[i])
 		rl := []rune(right.lines[i])
 
-		if len(ll) < offset {
-			continue
-		}
+		for j := range offset {
+			li := len(ll) - offset + j
+			ri := j
 
-		if r.isSmushable(ll[len(ll)-offset], rl[0]) {
-			continue
-		}
+			if li < 0 || ri >= len(rl) {
+				continue
+			}
 
-		if ll[len(ll)-offset] != ' ' && rl[0] != ' ' {
-			return false
+			if r.isSmushable(ll[li], rl[ri]) {
+				continue
+			}
+
+			if ll[li] != ' ' && rl[ri] != ' ' {
+				return false
+			}
 		}
 	}
 	return true
@@ -131,12 +115,36 @@ func (r *Renderer) isSmushable(a, b rune) bool {
 
 func (r *Renderer) applyRules(a, b rune) SmushResult {
 	for _, rule := range r.font.rules {
-		fmt.Println("Applying rule:", rule)
 		if res := rule(a, b); res.found {
 			return res
 		}
 	}
 	return SmushResult{char: 0, found: false}
+}
+
+func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
+	var flush int = glyph.width
+	for _, row := range glyph.lines {
+		for i, char := range row {
+			if char != ' ' && char != r.font.metadata.hardBlank {
+				// fmt.Printf("Found visible char %s at %d, %d\n", string(char), j, i)
+				flush = min(i, flush)
+				break
+			}
+		}
+	}
+
+	for i, row := range glyph.lines {
+		glyph.lines[i] = row[flush:]
+	}
+	return glyph
+}
+
+func (r *Renderer) linesToString(lines []string) string {
+	for i, line := range lines {
+		lines[i] = strings.ReplaceAll(line, string(r.font.metadata.hardBlank), " ")
+	}
+	return strings.Join(lines, "\n")
 }
 
 type SmushResult struct {

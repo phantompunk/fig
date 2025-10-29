@@ -104,8 +104,3 @@ func (f *FigFont) Render(text string) string {
 	renderer := New(f)
 	return renderer.Render(text)
 }
-
-func (f *FigFont) RenderExp(text string) string {
-	renderer := New(f)
-	return renderer.RenderExp(text)
-}
