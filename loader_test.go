@@ -50,7 +50,7 @@ func TestParseSmushModes(t *testing.T) {
 		expected SmushMode
 	}{
 		{
-			name:     "3x5",
+			name:     "base",
 			input:    -1,
 			expected: SmushMode{Enabled: true},
 		},
@@ -62,17 +62,17 @@ func TestParseSmushModes(t *testing.T) {
 		{
 			name:     "puffy",
 			input:    1,
-			expected: SmushMode{Enabled: true, EqualChar: true},
+			expected: SmushMode{Enabled: true},
 		},
 		{
 			name:     "stop",
 			input:    15,
-			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true},
+			expected: SmushMode{Enabled: true},
 		},
 		{
 			name:     "standard",
 			input:    24463,
-			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true, HorizontalSmush: true},
+			expected: SmushMode{Enabled: true, OppositePair: true, BigX: true, Hardblank: true},
 		},
 	}
 	for _, tc := range testcases {
