@@ -50,33 +50,71 @@ func TestParseSmushModes(t *testing.T) {
 		expected SmushMode
 	}{
 		{
-			name:     "base",
+			name:     "3x5",
 			input:    -1,
-			expected: SmushMode{Enabled: true},
+			expected: SmushMode{},
 		},
 		{
 			name:     "o8",
 			input:    0,
-			expected: SmushMode{Enabled: false},
+			expected: SmushMode{},
 		},
 		{
 			name:     "puffy",
 			input:    1,
-			expected: SmushMode{Enabled: true},
+			expected: SmushMode{Enabled: true, EqualChar: true},
 		},
 		{
 			name:     "stop",
 			input:    15,
-			expected: SmushMode{Enabled: true},
+			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true},
 		},
 		{
 			name:     "standard",
 			input:    24463,
-			expected: SmushMode{Enabled: true, OppositePair: true, BigX: true, Hardblank: true},
+			expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true, VEqualChar: true, VUnderscore: true, VHierarchy: true, HLine: true, Vline: true},
 		},
 	}
 	for _, tc := range testcases {
 		result := parseSmushMode(tc.input)
+		assert.Equal(t, tc.expected, result)
+	}
+}
+
+func TestParseLayoutModes(t *testing.T) {
+	testcases := []struct {
+		name     string
+		input    int
+		expected LayoutMode
+	}{
+		{
+			name:     "3x5",
+			input:    -1,
+			expected: LayoutMode{FullWidth: true},
+		},
+		{
+			name:     "o8",
+			input:    0,
+			expected: LayoutMode{Kerning: true},
+		},
+		{
+			name:     "puffy",
+			input:    1,
+			expected: LayoutMode{},
+		},
+		// {
+		// 	name:     "stop",
+		// 	input:    15,
+		// 	expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true},
+		// },
+		// {
+		// 	name:     "standard",
+		// 	input:    24463,
+		// 	expected: SmushMode{Enabled: true, EqualChar: true, Underscore: true, Hierarchy: true, OppositePair: true, VEqualChar: true, VUnderscore: true, VHierarchy: true, HLine: true, Vline: true},
+		// },
+	}
+	for _, tc := range testcases {
+		result := parseLayoutMode(tc.input)
 		assert.Equal(t, tc.expected, result)
 	}
 }
@@ -91,7 +129,7 @@ func TestParseGlyph(t *testing.T) {
      ##`
 	expected := strings.ReplaceAll(input, "#", "")
 	scanner := bufio.NewScanner(strings.NewReader(input))
-	g, err := readCharacter(scanner, 7, '$')
+	g, err := readCharacter(scanner, 7)
 	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
 	assert.Nil(t, err)
 
@@ -103,7 +141,7 @@ func TestParseGlyph(t *testing.T) {
           @@`
 	expected = strings.ReplaceAll(input, "@", "")
 	scanner = bufio.NewScanner(strings.NewReader(input))
-	g, err = readCharacter(scanner, 6, '$')
+	g, err = readCharacter(scanner, 6)
 	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
 	assert.Nil(t, err)
 }
@@ -117,7 +155,7 @@ func TestGlyphHardBlank(t *testing.T) {
  $@@`
 	expected := strings.ReplaceAll(input, "@", "")
 	scanner := bufio.NewScanner(strings.NewReader(input))
-	g, err := readCharacter(scanner, 6, '$')
+	g, err := readCharacter(scanner, 6)
 	assert.Equal(t, expected, strings.Join(g.lines, "\n"))
 	assert.Nil(t, err)
 }

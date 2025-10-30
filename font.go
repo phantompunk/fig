@@ -57,25 +57,28 @@ func setRules(meta Metadata) []SmushRule {
 }
 
 type SmushMode struct {
-	Enabled           bool
-	HorizontalLayout  bool
-	HorizontalFit     bool // enable kerning
-	VerticalLayout    bool
-	VerticalFit       bool
-	HorizontalSmush   bool
-	VerticalSmush     bool
-	EqualChar         bool
-	Underscore        bool
-	Hierarchy         bool
-	OppositePair      bool
-	BigX              bool
-	Hardblank         bool
-	HorizontalKerning bool
-	HorizontalFull    bool
-	FullLayoutActive  bool
+	Enabled      bool
+	EqualChar    bool // bit 0
+	Underscore   bool // bit 1
+	Hierarchy    bool // bit 2
+	OppositePair bool // bit 3
+	BigX         bool // bit 4
+	Hardblank    bool // bit 5
+	VEqualChar   bool // bit 8
+	VUnderscore  bool // bit 9
+	VHierarchy   bool // bit 10
+	HLine        bool // bit 11
+	Vline        bool // bit 12
 }
 
-type VerticalMode struct{}
+type LayoutMode struct {
+	FullWidth bool // no smushing
+	Kerning   bool // overlap by 1
+	Smushing  bool // smushing enabled
+	Universal bool // universal smushing
+	VKerning  bool // vertical kerning
+	VSmushing bool // vertical smushing
+}
 
 type Glyph struct {
 	lines []string
@@ -97,7 +100,7 @@ type Metadata struct {
 	codeTag        int
 	comments       string
 	smushMode      SmushMode
-	verticalMode   VerticalMode
+	layoutMode     LayoutMode
 }
 
 func (f *FigFont) Render(text string) string {

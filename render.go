@@ -34,73 +34,89 @@ func (r *Renderer) Render(text string) string {
 		if prev == nil {
 			prev = r.leftFlush(&g)
 			copy(lines, prev.lines)
+			prev = &g
 			continue
 		}
 
-		overlap := r.calculateOverlap(prev, &g)
+		overlap := r.computeOverlap(prev, &g)
 		lines = r.merge(lines, &g, overlap)
 		prev = &g
 	}
 	return r.linesToString(lines)
 }
 
-func (r *Renderer) calculateOverlap(left, right *Glyph) int {
-	width := r.font.metadata.maxLength
+func (r *Renderer) computeOverlap(left, right *Glyph) int {
+	minDist := r.font.metadata.maxLength
 
-	for i := 1; i < width; i++ {
-		if r.canOverlap(left, right, i) {
-			return i - 1
+	for row := range len(left.lines) {
+		leftRunes := []rune(left.lines[row])
+		rightRunes := []rune(right.lines[row])
+
+		dist := 0
+		ri := 0
+		li := len(leftRunes) - 1
+		for li > 0 && leftRunes[li] == ' ' {
+			li--
+		}
+		for ri < len(rightRunes) && rightRunes[ri] == ' ' {
+			ri++
+		}
+
+		if li < 0 || ri >= len(rightRunes) {
+			continue
+		}
+
+		for {
+			leftPos := li - dist
+			rightPos := ri + dist
+
+			if leftPos < 0 || rightPos >= len(rightRunes) {
+				break
+			}
+
+			lChar := leftRunes[leftPos]
+			rChar := rightRunes[rightPos]
+
+			// fmt.Printf("Dist: %d, Row %d: %q + %q, Chars: %q + %q, Sms: %v\n", dist, row, left.lines[row], right.lines[row], string(lChar), string(rChar), r.isSmushable(lChar, rChar))
+			if !r.isSmushable(lChar, rChar) {
+				break
+			}
+			dist++
+		}
+
+		if dist < minDist {
+			minDist = dist
 		}
 	}
-	return width - 1
-}
 
-func (r *Renderer) canOverlap(left, right *Glyph, offset int) bool {
-	for i := range r.font.metadata.height {
-		ll := []rune(left.lines[i])
-		rl := []rune(right.lines[i])
-
-		for j := range offset {
-			li := len(ll) - offset + j
-			ri := j
-
-			if li < 0 || ri >= len(rl) {
-				continue
-			}
-
-			if r.isSmushable(ll[li], rl[ri]) {
-				continue
-			}
-
-			if ll[li] != ' ' && rl[ri] != ' ' {
-				return false
-			}
-		}
+	if minDist < 0 {
+		minDist = 0
 	}
-	return true
+
+	return minDist
 }
 
 func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 	result := make([]string, r.font.metadata.height)
 
 	for i := range r.font.metadata.height {
-		left := []rune(lines[i])
-		right := []rune(right.lines[i])
+		leftRunes := []rune(lines[i])
+		rightRunes := []rune(right.lines[i])
 
 		for j := range overlap {
-			li := len(left) - overlap + j
+			li := len(leftRunes) - overlap + j
 			ri := j
 
-			if li < 0 || ri >= len(right) {
+			if li < 0 || ri >= len(rightRunes) {
 				continue
 			}
 
-			res := r.applyRules(left[li], right[ri])
-			if res.found {
-				left[li] = res.char
+			res := r.applyRules(leftRunes[li], rightRunes[ri])
+			if res.allowed {
+				leftRunes[li] = res.char
 			}
 		}
-		result[i] = string(left) + string(right[overlap:])
+		result[i] = string(leftRunes) + string(rightRunes[overlap:])
 	}
 	return result
 }
@@ -110,16 +126,16 @@ func (r *Renderer) isSmushable(a, b rune) bool {
 		return true
 	}
 	result := r.applyRules(a, b)
-	return result.found
+	return result.allowed
 }
 
 func (r *Renderer) applyRules(a, b rune) SmushResult {
 	for _, rule := range r.font.rules {
-		if res := rule(a, b); res.found {
+		if res := rule(a, b); res.allowed {
 			return res
 		}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
@@ -127,7 +143,6 @@ func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
 	for _, row := range glyph.lines {
 		for i, char := range row {
 			if char != ' ' && char != r.font.metadata.hardBlank {
-				// fmt.Printf("Found visible char %s at %d, %d\n", string(char), j, i)
 				flush = min(i, flush)
 				break
 			}
@@ -137,6 +152,7 @@ func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
 	for i, row := range glyph.lines {
 		glyph.lines[i] = row[flush:]
 	}
+	glyph.width -= flush
 	return glyph
 }
 
@@ -148,46 +164,51 @@ func (r *Renderer) linesToString(lines []string) string {
 }
 
 type SmushResult struct {
-	char  rune
-	found bool
+	char    rune
+	allowed bool
 }
 
 type SmushRule func(a, b rune) SmushResult
 
 func EqualChars(a, b rune) SmushResult {
 	if a == b && a != '$' {
-		return SmushResult{char: a, found: true}
+		return SmushResult{char: a, allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func BigX(a, b rune) SmushResult {
 	if a == '/' && b == '\\' {
-		return SmushResult{char: '|', found: true}
+		return SmushResult{char: '|', allowed: true}
 	} else if a == '\\' && b == '/' {
-		return SmushResult{char: 'Y', found: true}
+		return SmushResult{char: 'Y', allowed: true}
 	} else if a == '>' && b == '<' {
-		return SmushResult{char: 'X', found: true}
+		return SmushResult{char: 'X', allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func Underscore(a, b rune) SmushResult {
 	pairs := map[rune]struct{}{
-		'[': {},
-		']': {},
-		'{': {},
-		'}': {},
-		'(': {},
-		')': {},
+		'[':  {},
+		']':  {},
+		'{':  {},
+		'}':  {},
+		'(':  {},
+		')':  {},
+		'|':  {},
+		'/':  {},
+		'\\': {},
+		'<':  {},
+		'>':  {},
 	}
 
 	if _, found := pairs[a]; found && b == '_' {
-		return SmushResult{char: a, found: true}
+		return SmushResult{char: a, allowed: true}
 	} else if _, found := pairs[b]; found && a == '_' {
-		return SmushResult{char: b, found: true}
+		return SmushResult{char: b, allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func OppositePair(a, b rune) SmushResult {
@@ -200,9 +221,9 @@ func OppositePair(a, b rune) SmushResult {
 		')': '(',
 	}
 	if pairs[a] == b {
-		return SmushResult{char: '|', found: true}
+		return SmushResult{char: '|', allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func Heirarchy(a, b rune) SmushResult {
@@ -221,16 +242,16 @@ func Heirarchy(a, b rune) SmushResult {
 	}
 
 	if ch[a] > ch[b] {
-		return SmushResult{char: a, found: true}
+		return SmushResult{char: a, allowed: true}
 	} else if ch[a] < ch[b] {
-		return SmushResult{char: b, found: true}
+		return SmushResult{char: b, allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }
 
 func Hardblank(a, b rune) SmushResult {
-	if a == '$' && b == '$' {
-		return SmushResult{char: a, found: true}
+	if a == '$' || b == '$' {
+		return SmushResult{char: a, allowed: true}
 	}
-	return SmushResult{char: 0, found: false}
+	return SmushResult{char: 0, allowed: false}
 }

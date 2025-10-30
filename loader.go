@@ -64,7 +64,7 @@ func parseFont(name string, data io.Reader) (*FigFont, error) {
 	font := NewFigFont(name, meta)
 	// parseCharacters
 	for charCode := 32; charCode <= 126; charCode++ {
-		char, err := readCharacter(scanner, meta.height, meta.hardBlank)
+		char, err := readCharacter(scanner, meta.height)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read character %d: %w", charCode, err)
 		}
@@ -116,21 +116,81 @@ func (p *headerParser) parseInt(i int, name string) int {
 	return v
 }
 
-func parseSmushMode(layout int) SmushMode {
-	if layout < 0 {
-		return SmushMode{Enabled: true}
+const (
+	BitEqualChar       = 1 << 0  // 1
+	BitUnderscore      = 1 << 1  // 2
+	BitHierarchy       = 1 << 2  // 4
+	BitOppositePair    = 1 << 3  // 8
+	BitBigX            = 1 << 4  // 16
+	BitHardblank       = 1 << 5  // 32
+	BitKern            = 1 << 6  // 64
+	BitHSmush          = 1 << 7  // 128
+	BitVEqualChar      = 1 << 8  // 256
+	BitVUnderscore     = 1 << 9  // 512
+	BitVHierarchy      = 1 << 10 // 1024
+	BitHLine           = 1 << 11 // 2048
+	BitVline           = 1 << 12 // 4096
+	BitVKern           = 1 << 13 // 8192
+	BitVSmush          = 1 << 14 // 16384
+	BitLayoutKerning   = 1 << 0  // 1
+	BitLayoutUniversal = 1 << 1  // 2
+	BitLayoutVKerning  = 1 << 13 // 8192
+	BitLayoutVSmushing = 1 << 14 // 16384
+)
+
+func parseSmushMode(mask int) SmushMode {
+	if mask < 0 {
+		return SmushMode{Enabled: false}
 	}
 
 	return SmushMode{
-		Enabled:      layout > 0,
-		EqualChar:    layout&16 != 0,
-		Underscore:   layout&32 != 0,
-		Hierarchy:    layout&64 != 0,
-		OppositePair: layout&128 != 0,
-		BigX:         layout&256 != 0,
-		Hardblank:    layout&512 != 0,
-		// TODO: support vertical smushing
+		// Enabled is true if the bitmask is greater than 0
+		Enabled: mask > 0,
+
+		// Horizontal Smushing Bits
+		EqualChar:    mask&BitEqualChar != 0,
+		Underscore:   mask&BitUnderscore != 0,
+		Hierarchy:    mask&BitHierarchy != 0,
+		OppositePair: mask&BitOppositePair != 0,
+		BigX:         mask&BitBigX != 0,
+		Hardblank:    mask&BitHardblank != 0,
+
+		// Vertical Smushing Bits
+		VEqualChar:  mask&BitVEqualChar != 0,
+		VUnderscore: mask&BitVUnderscore != 0,
+		VHierarchy:  mask&BitVHierarchy != 0,
+		HLine:       mask&BitHLine != 0,
+		Vline:       mask&BitVline != 0,
 	}
+}
+
+func parseLayoutMode(mask int) LayoutMode {
+	if mask < 0 {
+		return LayoutMode{FullWidth: true}
+	}
+
+	isKerning := mask >= 0
+	isUniversal := mask&BitLayoutUniversal != 0
+
+	mode := LayoutMode{
+		// Kerning is set if Bit 0 is active
+		Kerning: isKerning,
+
+		// Universal Smushing is set if Bit 1 is active (this is often the 'Smushing' flag)
+		Universal: isUniversal,
+
+		// Smushing is enabled if Universal Smushing is active
+		Smushing: isUniversal,
+
+		// FullWidth is true only if neither Kerning nor Universal Smushing bits are set
+		// FullWidth: !isKerning && !isUniversal,
+
+		// Vertical Modes (using dedicated higher bits)
+		VKerning:  mask&BitLayoutVKerning != 0,
+		VSmushing: mask&BitLayoutVSmushing != 0,
+	}
+
+	return mode
 }
 
 func parseHeader(header string) (Metadata, error) {
@@ -166,7 +226,7 @@ func parseHeader(header string) (Metadata, error) {
 	return meta, parser.err
 }
 
-func readCharacter(scanner *bufio.Scanner, height int, hardBlank rune) (Glyph, error) {
+func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
 	lines := make([]string, height)
 	width := 0
 

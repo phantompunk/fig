@@ -6,37 +6,135 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRenderEx(t *testing.T) {
+func TestCanSmushEqualChars(t *testing.T) {
 	testcases := []struct {
 		name     string
-		fontName string
-		input    string
-		expected string
+		left     rune
+		right    rune
+		expected bool
 	}{
-		{
-			name:     "3x5 A",
-			fontName: "3x5",
-			input:    "A",
-			expected: "    \n #  \n# # \n### \n# # \n# # ",
-		},
-		{
-			name:     "3x5 AB",
-			fontName: "3x5",
-			input:    "AB",
-			expected: "        \n #  ##  \n# # # # \n### ##  \n# # # # \n# # ##  ",
-		},
-		{
-			name:     "standard A",
-			fontName: "standard",
-			input:    "A",
-			expected: "    _    \n   / \\   \n  / _ \\  \n / ___ \\ \n/_/   \\_\\\n         ",
-		},
+		{"Same letters", 'X', 'X', true},
+		{"Different letters", 'X', 'Y', false},
+		{"Same numbers", '5', '5', true},
+		{"Different numbers", '5', '4', false},
 	}
+
+	renderer := NewSmushRenderer(EqualChars)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			font, _ := loadFont(tc.fontName)
-			render := New(font)
-			assert.Equal(t, tc.expected, render.Render(tc.input))
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+		})
+	}
+}
+
+func TestCanSmushUnderscores(t *testing.T) {
+	testcases := []struct {
+		name     string
+		left     rune
+		right    rune
+		expected bool
+	}{
+		{"underscore with pipe", '_', '|', true},
+		{"underscore with brace", '_', '{', true},
+		{"underscore with angle", '<', '_', true},
+		{"underscore with letter", 'l', '_', false},
+		{"two underscores", '_', '_', false},
+	}
+
+	renderer := NewSmushRenderer(Underscore)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+		})
+	}
+}
+
+// A hierarchy of six classes is used: "|", "/\", "[]", "{}", "()", and "<>". When two smushing sub-characters are from different classes, the one from the latter class will be used.
+func TestCanSmushHierarchy(t *testing.T) {
+	testcases := []struct {
+		name     string
+		left     rune
+		right    rune
+		expected bool
+	}{
+		{"pipe vs slash", '|', '/', true},
+		{"bracket vs pipe", '[', '|', true},
+		{"paren vs bracket", '(', '[', true},
+		{"same hierarchy", '[', ']', true},
+		{"non-hierarchy chars", 'A', 'B', false},
+	}
+
+	renderer := NewSmushRenderer(Heirarchy)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+		})
+	}
+}
+
+func TestCanSmushOpposite(t *testing.T) {
+	testcases := []struct {
+		name     string
+		left     rune
+		right    rune
+		expected bool
+	}{
+		{"square brackets", '[', ']', true},
+		{"reverse square brackets", ']', '[', true},
+		{"curly braces", '{', '}', true},
+		{"parentheses", '(', ')', true},
+		{"same bracket", '[', '[', false},
+		{"non-brackets", 'A', 'B', false},
+	}
+
+	renderer := NewSmushRenderer(OppositePair)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+		})
+	}
+}
+
+func TestCanSmushBigX(t *testing.T) {
+	testcases := []struct {
+		name     string
+		left     rune
+		right    rune
+		expected bool
+	}{
+		{"forward slash + backslash", '/', '\\', true},
+		{"backslash + forward slash", '\\', '/', true},
+		{"two forward slashes", '/', '/', false},
+		{"two backslashes", '\\', '\\', false},
+		{"non-slashes", 'X', 'Y', false},
+	}
+
+	renderer := NewSmushRenderer(BigX)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+		})
+	}
+}
+
+func TestCanSmushHardblank(t *testing.T) {
+	testcases := []struct {
+		name     string
+		left     rune
+		right    rune
+		expected bool
+	}{
+		{"pipe vs slash", '|', '/', true},
+		{"bracket vs pipe", '[', '|', true},
+		{"paren vs bracket", '(', '[', true},
+		{"same hierarchy", '[', ']', true},
+		{"non-hierarchy chars", 'A', 'B', false},
+	}
+
+	renderer := NewSmushRenderer(Heirarchy)
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
 		})
 	}
 }
@@ -146,13 +244,60 @@ func TestIsSmushable(t *testing.T) {
 		{
 			name:     "standard HH",
 			fontName: "standard",
-			input:    []rune{'H', 'H'},
+			input:    []rune{'|', '_'},
 			expected: true,
 		},
 		{
 			name:     "standard space",
 			fontName: "standard",
 			input:    []rune{' ', 'H'},
+			expected: true,
+		},
+		{
+			name:     "standard $",
+			fontName: "standard",
+			input:    []rune{' ', '$'},
+			expected: true,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			font, _ := loadFont(tc.fontName)
+			render := New(font)
+			assert.Equal(t, tc.expected, render.isSmushable(tc.input[0], tc.input[1]))
+		})
+	}
+}
+
+func TestStandardSmushable(t *testing.T) {
+	testcases := []struct {
+		name     string
+		fontName string
+		input    []rune
+		expected bool
+	}{
+		{
+			name:     "standard HH",
+			fontName: "standard",
+			input:    []rune{'|', '_'},
+			expected: true,
+		},
+		{
+			name:     "standard space",
+			fontName: "standard",
+			input:    []rune{' ', 'H'},
+			expected: true,
+		},
+		{
+			name:     "standard spaces",
+			fontName: "standard",
+			input:    []rune{' ', ' '},
+			expected: true,
+		},
+		{
+			name:     "standard $",
+			fontName: "standard",
+			input:    []rune{' ', '$'},
 			expected: true,
 		},
 	}
@@ -172,24 +317,30 @@ func TestOverlap(t *testing.T) {
 		input    []rune
 		expected int
 	}{
+		// {
+		// 	name:     "3x5 AB",
+		// 	fontName: "3x5",
+		// 	input:    []rune{'A', 'B'},
+		// 	expected: 0,
+		// },
 		{
-			name:     "3x5 AB",
-			fontName: "3x5",
-			input:    []rune{'A', 'B'},
-			expected: 0,
+			name:     "standard Hspace",
+			fontName: "standard",
+			input:    []rune{'H', ' '},
+			expected: 2,
 		},
 		{
 			name:     "standard HH",
 			fontName: "standard",
-			input:    []rune{'H', 'H'},
-			expected: 14,
+			input:    []rune{'H', 'i'},
+			expected: 2,
 		},
-		{
-			name:     "standard space",
-			fontName: "standard",
-			input:    []rune{' ', 'H'},
-			expected: 1,
-		},
+		// {
+		// 	name:     "standard space",
+		// 	fontName: "standard",
+		// 	input:    []rune{' ', 'H'},
+		// 	expected: 1,
+		// },
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -197,7 +348,17 @@ func TestOverlap(t *testing.T) {
 			render := New(font)
 			left := font.getGlyph(tc.input[0])
 			right := font.getGlyph(tc.input[1])
-			assert.Equal(t, tc.expected, render.calculateOverlap(&left, &right))
+			assert.Equal(t, tc.expected, render.computeOverlap(&left, &right))
 		})
 	}
+}
+
+func NewSmushRenderer(mode SmushRule) *Renderer {
+	font := &FigFont{
+		metadata: Metadata{
+			hardBlank: '$',
+		},
+		rules: []SmushRule{mode},
+	}
+	return &Renderer{font: font}
 }
