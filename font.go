@@ -11,6 +11,13 @@ func Font(name string) (*FigFont, error) {
 	return loadFont(name)
 }
 
+func Must(t *FigFont, err error) *FigFont {
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
 func (f *FigFont) getGlyph(char rune) Glyph {
 	return f.glyphs[char]
 }

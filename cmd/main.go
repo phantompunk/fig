@@ -10,6 +10,7 @@ import (
 
 	"github.com/phantompunk/fig"
 	"github.com/phantompunk/fig/internal/vcs"
+	"github.com/phantompunk/fig/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -68,8 +69,7 @@ func figFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 {
-		fmt.Println("TBD UI")
-		return nil
+		return tui.Start()
 	}
 
 	msg := strings.Join(args, "")
