@@ -7,15 +7,30 @@ type FigFont struct {
 	rules    []SmushRule
 }
 
+// Font loads a FIGlet font by name.
 func Font(name string) (*FigFont, error) {
 	return loadFont(name)
 }
 
+// Must is a helper method that panics if there is an error loading the font.
 func Must(t *FigFont, err error) *FigFont {
 	if err != nil {
 		panic(err)
 	}
 	return t
+}
+
+// Name returns the name of the font.
+func (f *FigFont) Name() string { return f.name }
+
+func (f *FigFont) Render(text string) string {
+	renderer := New(f)
+	return renderer.Render(text)
+}
+
+func (f *FigFont) Lines(text string) []string {
+	renderer := New(f)
+	return renderer.Lines(text)
 }
 
 func (f *FigFont) getGlyph(char rune) Glyph {
@@ -108,9 +123,4 @@ type Metadata struct {
 	comments       string
 	smushMode      SmushMode
 	layoutMode     LayoutMode
-}
-
-func (f *FigFont) Render(text string) string {
-	renderer := New(f)
-	return renderer.Render(text)
 }

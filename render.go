@@ -25,6 +25,14 @@ func New(font *FigFont) *Renderer {
 }
 
 func (r *Renderer) Render(text string) string {
+	return r.linesToString(r.render(text))
+}
+
+func (r *Renderer) Lines(text string) []string {
+	return r.render(text)
+}
+
+func (r *Renderer) render(text string) []string {
 	lines := make([]string, r.font.metadata.height)
 
 	var prev *Glyph
@@ -42,7 +50,7 @@ func (r *Renderer) Render(text string) string {
 		lines = r.merge(lines, &g, overlap)
 		prev = &g
 	}
-	return r.linesToString(lines)
+	return lines
 }
 
 func (r *Renderer) computeOverlap(left, right *Glyph) int {
