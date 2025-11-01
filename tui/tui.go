@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,49 +9,32 @@ import (
 	"github.com/phantompunk/fig"
 )
 
-type FontPreview struct {
-	Name   string
-	Font   *fig.FigFont
-	Output string
-}
-
-func (f FontPreview) Preview(text string) string {
-	return f.Font.Render(text)
-}
-
-var allFonts = []FontPreview{{
-	Name: "standard",
-	Font: fig.Must(fig.Font("standard")),
-}, {
-	Name: "slant",
-	Font: fig.Must(fig.Font("slant")),
-}, {
-	Name: "lean",
-	Font: fig.Must(fig.Font("lean")),
-}, {
-	Name: "big",
-	Font: fig.Must(fig.Font("big")),
-}}
-
-type fontModel struct {
-	text          string
-	fonts         []FontPreview
-	selectedFont  int
-	width, height int
-	focusState    focusState
-	newTextInput  textinput.Model
-}
-
 type focusState int
 
 const (
-	focusStateList focusState = iota
-	focusStateTextInput
+	focusFontList focusState = iota
+	focusTextInput
 )
 
-func (a fontModel) Init() tea.Cmd { return loadFonts }
+type model struct {
+	textInput    textinput.Model
+	fonts        []*fig.FigFont
+	text         string
+	selectedFont int
+	width        int
+	height       int
+	ready        bool
+	focusState   focusState
+}
 
-func (a fontModel) View() string {
+func newModel() *model {
+	textInput := textinput.New()
+	return &model{textInput: textInput}
+}
+
+func (a model) Init() tea.Cmd { return loadFonts }
+
+func (a model) View() string {
 	var elements []string
 	elements = append(elements, a.newTextInputView())
 	for i := range a.fonts {
@@ -63,119 +45,94 @@ func (a fontModel) View() string {
 	return gloss.JoinVertical(gloss.Left, elements...)
 }
 
-func (a fontModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (a model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			return a, tea.Quit
+
+		case "k", "up":
+			if a.selectedFont > 0 && a.focusState == focusFontList {
+				a.selectedFont--
+			}
+
+		case "j", "down":
+			if a.selectedFont < len(a.fonts)-1 && a.focusState == focusFontList {
+				a.selectedFont++
+			}
+
+		case "i":
+			if a.focusState == focusFontList {
+				a.toggleFocusState()
+				return a, nil
+			}
+
+		case "enter":
+			if a.focusState == focusTextInput {
+				a.toggleFocusState()
+			}
+		}
+
 	case fontsLoadedMsg:
 		a.fonts = msg.fonts
 		return a, nil
+
 	case tea.WindowSizeMsg:
 		a.width, a.height = msg.Width, msg.Width
 		return a, nil
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			return a, tea.Quit
-		case "up":
-			if a.selectedFont > 0 && a.focusState == focusStateList {
-				a.selectedFont--
-			}
-		case "down":
-			if a.selectedFont < len(a.fonts)-1 && a.focusState == focusStateList {
-				a.selectedFont++
-			}
-		case "i":
-			if a.focusState == focusStateList {
-				a.toggleFocusState()
-			}
-		case "esc", "enter":
-			if a.focusState == focusStateTextInput {
-				a.text = a.newTextInput.Value()
-			}
-			a.toggleFocusState()
-		}
 	}
 
-	if a.newTextInput, cmd = a.newTextInput.Update(msg); cmd != nil {
-		a.text = a.newTextInput.Value()
+	if a.textInput, cmd = a.textInput.Update(msg); cmd != nil {
+		a.text = a.textInput.Value()
 		return a, cmd
 	}
 	return a, nil
 }
 
 type fontsLoadedMsg struct {
-	fonts []FontPreview
+	fonts []*fig.FigFont
 }
 
 func loadFonts() tea.Msg {
-	all := []FontPreview{}
+	all := []*fig.FigFont{}
 	fonts := fig.ListFonts()
 	for _, name := range fonts[5:7] {
-		all = append(all, FontPreview{Name: name, Font: fig.Must(fig.Font(name))})
+		all = append(all, fig.Must(fig.Font(name)))
 	}
 	return fontsLoadedMsg{fonts: all}
 }
 
-func (a fontModel) selectedBoxStyle() gloss.Style {
-	return a.boxStyle().
-		BorderForeground(gloss.Color("#00FF00")).
-		Bold(true)
-}
-
-func (a fontModel) boxStyle() gloss.Style {
-	return gloss.NewStyle().
-		Width(a.width-4).
-		Border(gloss.RoundedBorder()).
-		BorderForeground(gloss.Color("#FFF")).
-		Padding(0, 1, 0, 1).
-		Foreground(gloss.Color("#FFF"))
-}
-
-func (a fontModel) PreviewFont(index int) string {
-	tmpl := "%s\n%s"
-	message := fmt.Sprintf(tmpl, a.fonts[index].Name, a.fonts[index].Font.Render(a.text))
-	return message
-}
-
-func (a fontModel) fontView(index int) string {
-	preview := a.PreviewFont(index)
-	if index == a.selectedFont {
-		return a.selectedBoxStyle().Render(preview)
+func (a model) PreviewFont(index int) string {
+	tmpl := "%s\nn\t%s"
+	fname := gloss.NewStyle().Italic(true)
+	output := gloss.NewStyle().PaddingLeft(4)
+	if a.text == "" {
+		return fmt.Sprintf(tmpl, fname.Render(a.fonts[index].Name()), output.Render(a.fonts[index].Render(a.fonts[index].Name())))
 	}
-	return a.boxStyle().Render(preview)
+	return fmt.Sprintf(tmpl, fname.Render(a.fonts[index].Name()), output.Render(a.fonts[index].Render(a.text)))
 }
 
-func (a fontModel) newTextInputView() string {
-	var b strings.Builder
-	b.WriteString("Input ")
-	b.WriteString(a.newTextInput.View())
-
-	if a.focusState == focusStateTextInput {
-		return a.selectedBoxStyle().Render(b.String())
-	}
-	return a.boxStyle().Render(b.String())
-}
-
-func (a *fontModel) toggleFocusState() {
+func (a *model) toggleFocusState() {
 	switch a.focusState {
-	case focusStateTextInput:
-		a.focusState = focusStateList
+	case focusTextInput:
+		a.focusState = focusFontList
 		a.selectedFont = 0
-		a.newTextInput.Focus()
-	case focusStateList:
-		a.focusState = focusStateTextInput
+		a.textInput.Blur()
+	case focusFontList:
+		a.focusState = focusTextInput
 		a.selectedFont = -1
-		a.newTextInput.Focus()
+		a.textInput.Focus()
 	}
 }
 
 func Start() error {
-	// m := fontModel{fonts: allFonts, text: "demo"}
-	m := fontModel{text: "demo", newTextInput: textinput.New()}
+	m := newModel()
 
 	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
-		return fmt.Errorf("running interactive table: %w", err)
+		return fmt.Errorf("running tui: %w", err)
 	}
 
 	return nil
