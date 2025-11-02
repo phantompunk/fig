@@ -22,6 +22,7 @@ func Must(t *FigFont, err error) *FigFont {
 
 // Name returns the name of the font.
 func (f *FigFont) Name() string { return f.name }
+func (f *FigFont) Height() int  { return f.metadata.height }
 
 func (f *FigFont) Render(text string) string {
 	renderer := New(f)

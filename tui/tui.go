@@ -16,15 +16,26 @@ const (
 	focusTextInput
 )
 
+type item struct {
+	name   string
+	font   *fig.FigFont
+	index  int
+	height int
+	top    int
+	bottom int
+}
+
 type model struct {
-	textInput    textinput.Model
-	fonts        []*fig.FigFont
-	text         string
-	selectedFont int
-	width        int
-	height       int
-	ready        bool
-	focusState   focusState
+	textInput  textinput.Model
+	fonts      []item
+	text       string
+	cursor     int
+	width      int
+	viewHeight int
+	ready      bool
+	start      int
+	end        int
+	focusState focusState
 }
 
 func newModel() *model {
@@ -32,99 +43,175 @@ func newModel() *model {
 	return &model{textInput: textInput}
 }
 
-func (a model) Init() tea.Cmd { return loadFonts }
+func (m model) Init() tea.Cmd { return loadFonts }
 
-func (a model) View() string {
+func (m model) View() string {
 	var elements []string
-	elements = append(elements, a.newTextInputView())
-	for i := range a.fonts {
-		elements = append(elements, a.fontView(i))
+	elements = append(elements, m.newTextInputView())
+
+	if m.ready {
+		for i := m.start; i < m.end && i < len(m.fonts); i++ {
+			elements = append(elements, m.fontView(i))
+		}
+		// elements = append(elements, m.statusView())
 	}
 
 	elements = append(elements, "Press Ctrl+C to quit")
 	return gloss.JoinVertical(gloss.Left, elements...)
 }
 
-func (a model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
-			return a, tea.Quit
+			return m, tea.Quit
 
 		case "k", "up":
-			if a.selectedFont > 0 && a.focusState == focusFontList {
-				a.selectedFont--
+			if m.cursor > 0 && m.focusState == focusFontList {
+				m.cursor--
+				m.updateVisibleRange()
 			}
 
 		case "j", "down":
-			if a.selectedFont < len(a.fonts)-1 && a.focusState == focusFontList {
-				a.selectedFont++
+			if m.cursor < len(m.fonts)-1 && m.focusState == focusFontList {
+				m.cursor++
+				m.updateVisibleRange()
 			}
 
 		case "i":
-			if a.focusState == focusFontList {
-				a.toggleFocusState()
-				return a, nil
+			if m.focusState == focusFontList {
+				m.toggleFocusState()
+				return m, nil
 			}
 
 		case "enter":
-			if a.focusState == focusTextInput {
-				a.toggleFocusState()
+			if m.focusState == focusTextInput {
+				m.toggleFocusState()
 			}
 		}
 
 	case fontsLoadedMsg:
-		a.fonts = msg.fonts
-		return a, nil
+		m.fonts = msg.fonts
+		m.ready = true
+		m.cursor = 0
+		m.updateVisibleRange()
+		return m, nil
 
 	case tea.WindowSizeMsg:
-		a.width, a.height = msg.Width, msg.Width
-		return a, nil
+		m.width, m.viewHeight = msg.Width, msg.Height-8
+		return m, nil
 	}
 
-	if a.textInput, cmd = a.textInput.Update(msg); cmd != nil {
-		a.text = a.textInput.Value()
-		return a, cmd
+	if m.textInput, cmd = m.textInput.Update(msg); cmd != nil {
+		m.text = m.textInput.Value()
+		return m, cmd
 	}
-	return a, nil
+	return m, nil
+}
+
+func (m *model) updateVisibleRange() {
+	if len(m.fonts) == 0 {
+		m.start = 0
+		m.end = 0
+		return
+	}
+
+	// Ensure cursor is within bounds
+	if m.cursor >= len(m.fonts) {
+		m.cursor = len(m.fonts) - 1
+	}
+
+	// Find the range of fonts that fit in the visible area
+	totalHeight := 0
+	start := 0
+	end := 0
+
+	// Find start index - scroll to show cursor at top if needed
+	for i := 0; i < len(m.fonts); i++ {
+		if i == m.cursor {
+			start = i
+			break
+		}
+	}
+
+	// Find end index - fill viewport from start position
+	totalHeight = 3
+	for i := start; i < len(m.fonts) && totalHeight < m.viewHeight; i++ {
+		totalHeight += m.fonts[i].height + 3
+		end = i + 1
+	}
+
+	// Ensure end doesn't exceed array bounds
+	if end > len(m.fonts) {
+		end = len(m.fonts)
+	}
+
+	m.start = start
+	m.end = end
 }
 
 type fontsLoadedMsg struct {
-	fonts []*fig.FigFont
+	fonts []item
 }
 
 func loadFonts() tea.Msg {
-	all := []*fig.FigFont{}
-	fonts := fig.ListFonts()
-	for _, name := range fonts[5:7] {
-		all = append(all, fig.Must(fig.Font(name)))
+	fontNames := fig.ListFonts()
+	items := make([]item, 0, len(fontNames))
+
+	for i, name := range fontNames {
+		font, err := fig.Font(name)
+		if err != nil {
+			continue
+		}
+
+		items = append(items, item{
+			name:   name,
+			font:   font,
+			index:  i,
+			height: font.Height(),
+		})
 	}
-	return fontsLoadedMsg{fonts: all}
+
+	return fontsLoadedMsg{fonts: items}
+
+	// all := []item{}
+	// fonts := fig.ListFonts()
+	// pos := 3
+	// for i, name := range fonts {
+	// 	itm := item{font: fig.Must(fig.Font(name)), index: i}
+	// 	itm.height = itm.font.Height()
+	// 	itm.top = pos
+	// 	pos += itm.font.Height() + 3
+	// 	itm.bottom = pos
+	// 	all = append(all, itm)
+	// }
+	// return fontsLoadedMsg{fonts: all}
 }
 
-func (a model) PreviewFont(index int) string {
-	tmpl := "%s\nn\t%s"
+func (m model) PreviewFont(index int) string {
+	if index < 0 || index >= len(m.fonts) {
+		return "Invalid font index"
+	}
+	tmpl := "%s\n%s"
 	fname := gloss.NewStyle().Italic(true)
 	output := gloss.NewStyle().PaddingLeft(4)
-	if a.text == "" {
-		return fmt.Sprintf(tmpl, fname.Render(a.fonts[index].Name()), output.Render(a.fonts[index].Render(a.fonts[index].Name())))
+	if m.text == "" {
+		return fmt.Sprintf(tmpl, fname.Render(m.fonts[index].font.Name()), output.Render(m.fonts[index].font.Render(m.fonts[index].font.Name())))
 	}
-	return fmt.Sprintf(tmpl, fname.Render(a.fonts[index].Name()), output.Render(a.fonts[index].Render(a.text)))
+	return fmt.Sprintf(tmpl, fname.Render(m.fonts[index].font.Name()), output.Render(m.fonts[index].font.Render(m.text)))
 }
 
-func (a *model) toggleFocusState() {
-	switch a.focusState {
+func (m *model) toggleFocusState() {
+	switch m.focusState {
 	case focusTextInput:
-		a.focusState = focusFontList
-		a.selectedFont = 0
-		a.textInput.Blur()
+		m.focusState = focusFontList
+		m.textInput.Blur()
 	case focusFontList:
-		a.focusState = focusTextInput
-		a.selectedFont = -1
-		a.textInput.Focus()
+		m.focusState = focusTextInput
+		m.textInput.Focus()
 	}
 }
 
