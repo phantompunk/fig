@@ -165,10 +165,14 @@ func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
 }
 
 func (r *Renderer) linesToString(lines []string) string {
-	for i, line := range lines {
-		lines[i] = strings.ReplaceAll(line, string(r.font.metadata.hardBlank), " ")
+	result := make([]string, 0, len(lines))
+	for _, line := range lines {
+		row := strings.ReplaceAll(line, string(r.font.metadata.hardBlank), " ")
+		if strings.TrimSpace(row) != "" {
+			result = append(result, row)
+		}
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(result, "\n")
 }
 
 type SmushResult struct {
