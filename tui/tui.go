@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,21 +22,21 @@ type item struct {
 	font   *fig.FigFont
 	index  int
 	height int
-	top    int
-	bottom int
 }
 
 type model struct {
-	textInput  textinput.Model
-	fonts      []item
-	text       string
-	cursor     int
-	width      int
-	viewHeight int
-	ready      bool
-	start      int
-	end        int
-	focusState focusState
+	textInput   textinput.Model
+	fonts       []item
+	text        string
+	cursor      int
+	width       int
+	viewHeight  int
+	ready       bool
+	start       int
+	end         int
+	totalHeight int
+	offset      int
+	focusState  focusState
 }
 
 func newModel() *model {
@@ -46,18 +47,11 @@ func newModel() *model {
 func (m model) Init() tea.Cmd { return loadFonts }
 
 func (m model) View() string {
-	var elements []string
-	elements = append(elements, m.newTextInputView())
-
-	if m.ready {
-		for i := m.start; i < m.end && i < len(m.fonts); i++ {
-			elements = append(elements, m.fontView(i))
-		}
-		// elements = append(elements, m.statusView())
-	}
-
-	elements = append(elements, "Press Ctrl+C to quit")
-	return gloss.JoinVertical(gloss.Left, elements...)
+	inputBox := m.textInputBox()
+	visible := m.renderPreviews()
+	status := m.statusView()
+	helpBox := m.helpBox()
+	return gloss.JoinVertical(gloss.Left, inputBox, visible, status, helpBox)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -72,13 +66,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k", "up":
 			if m.cursor > 0 && m.focusState == focusFontList {
 				m.cursor--
-				m.updateVisibleRange()
+				m.ensureSelectedVisible()
 			}
 
 		case "j", "down":
 			if m.cursor < len(m.fonts)-1 && m.focusState == focusFontList {
 				m.cursor++
-				m.updateVisibleRange()
+				m.ensureSelectedVisible()
 			}
 
 		case "i":
@@ -97,11 +91,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fonts = msg.fonts
 		m.ready = true
 		m.cursor = 0
-		m.updateVisibleRange()
+		m.ensureSelectedVisible()
 		return m, nil
 
 	case tea.WindowSizeMsg:
-		m.width, m.viewHeight = msg.Width, msg.Height-8
+		m.width = msg.Width
+
+		const (
+			inputBoxHeight = 3
+			statusHeight   = 1
+			helpBoxHeight  = 2
+		)
+		m.viewHeight = msg.Height - inputBoxHeight - statusHeight - helpBoxHeight
+		if m.viewHeight < 5 {
+			m.viewHeight = 5
+		}
 		return m, nil
 	}
 
@@ -110,6 +114,62 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 	return m, nil
+}
+
+func (m *model) visibleRange() (start, startOffset, end int) {
+	if len(m.fonts) == 0 {
+		return 0, 0, 0
+	}
+
+	off := m.offset
+	start = 0
+
+	for start < len(m.fonts) && off >= m.fonts[start].height {
+		off -= m.fonts[start].height
+		start++
+	}
+
+	if start >= len(m.fonts) {
+		return len(m.fonts) - 1, 0, len(m.fonts) - 1
+	}
+
+	startOffset = off
+	remaining := m.viewHeight
+	remaining -= (m.fonts[start].height - startOffset)
+
+	end = start
+
+	for remaining > 0 && end+1 < len(m.fonts) {
+		end++
+		remaining -= m.fonts[end].height
+	}
+
+	return
+}
+
+func (m *model) ensureSelectedVisible() {
+	start, _, end := m.visibleRange()
+
+	if m.cursor < start {
+		m.offset = 0
+		for i := 0; i < m.cursor; i++ {
+			m.offset += m.fonts[i].height
+		}
+		return
+	}
+
+	if m.cursor > end {
+		offset := 0
+		for i := 0; i <= m.cursor; i++ {
+			offset += m.fonts[i].height
+		}
+		m.offset = offset - m.viewHeight
+
+		if m.offset < 0 {
+			m.offset = 0
+		}
+		return
+	}
 }
 
 func (m *model) updateVisibleRange() {
@@ -138,7 +198,7 @@ func (m *model) updateVisibleRange() {
 	}
 
 	// Find end index - fill viewport from start position
-	totalHeight = 3
+	totalHeight = 0
 	for i := start; i < len(m.fonts) && totalHeight < m.viewHeight; i++ {
 		totalHeight += m.fonts[i].height + 3
 		end = i + 1
@@ -161,7 +221,7 @@ func loadFonts() tea.Msg {
 	fontNames := fig.ListFonts()
 	items := make([]item, 0, len(fontNames))
 
-	for i, name := range fontNames {
+	for i, name := range fontNames[:20] {
 		font, err := fig.Font(name)
 		if err != nil {
 			continue
@@ -171,24 +231,11 @@ func loadFonts() tea.Msg {
 			name:   name,
 			font:   font,
 			index:  i,
-			height: font.Height(),
+			height: font.Height() + 3,
 		})
 	}
 
 	return fontsLoadedMsg{fonts: items}
-
-	// all := []item{}
-	// fonts := fig.ListFonts()
-	// pos := 3
-	// for i, name := range fonts {
-	// 	itm := item{font: fig.Must(fig.Font(name)), index: i}
-	// 	itm.height = itm.font.Height()
-	// 	itm.top = pos
-	// 	pos += itm.font.Height() + 3
-	// 	itm.bottom = pos
-	// 	all = append(all, itm)
-	// }
-	// return fontsLoadedMsg{fonts: all}
 }
 
 func (m model) PreviewFont(index int) string {
@@ -223,4 +270,37 @@ func Start() error {
 	}
 
 	return nil
+}
+
+func (m model) renderPreviews() string {
+	var b strings.Builder
+
+	if m.ready {
+		start, startOff, end := m.visibleRange()
+		for i := start; i <= end; i++ {
+			preview := m.fontViewOG(i)
+
+			// Clip the first item if needed
+			if i == start && startOff > 0 {
+				lines := strings.Split(preview, "\n")
+				lines = lines[startOff:]
+				preview = strings.Join(lines, "\n")
+			}
+
+			b.WriteString(preview)
+			if i < end {
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	return b.String()
+}
+
+func (m model) fontViewOG(index int) string {
+	preview := m.PreviewFont(index)
+	if index == m.cursor {
+		return m.selectedBoxStyle().Render(preview)
+	}
+	return m.boxStyle().Render(preview)
 }
