@@ -25,18 +25,16 @@ type item struct {
 }
 
 type model struct {
-	textInput   textinput.Model
-	fonts       []item
-	text        string
-	cursor      int
-	width       int
-	viewHeight  int
-	ready       bool
-	start       int
-	end         int
-	totalHeight int
-	offset      int
-	focusState  focusState
+	textInput  textinput.Model
+	fonts      []item
+	text       string
+	cursor     int
+	width      int
+	height     int
+	viewHeight int
+	ready      bool
+	offset     int
+	focusState focusState
 }
 
 func newModel() *model {
@@ -48,10 +46,39 @@ func (m model) Init() tea.Cmd { return loadFonts }
 
 func (m model) View() string {
 	inputBox := m.textInputBox()
-	visible := m.renderPreviews()
 	status := m.statusView()
 	helpBox := m.helpBox()
-	return gloss.JoinVertical(gloss.Left, inputBox, visible, status, helpBox)
+
+	if !m.ready {
+		return "loading fonts"
+	}
+
+	previewContent := m.renderPreviews()
+	// Constrain preview to viewHeight lines to keep status/helpBox visible
+	lines := strings.Split(previewContent, "\n")
+	if len(lines) > m.viewHeight {
+		lines = lines[:m.viewHeight]
+		previewContent = strings.Join(lines, "\n")
+	}
+
+	// Combine status and help box at the bottom
+	footer := gloss.JoinVertical(gloss.Left, status, helpBox)
+
+	// Use height constraint to push footer to the bottom
+	const (
+		inputBoxHeight = 3
+		statusHeight   = 1
+		helpBoxHeight  = 2
+	)
+	footerHeight := statusHeight + helpBoxHeight
+	contentHeight := m.height - inputBoxHeight - footerHeight
+
+	// Create main content area with height constraint to push footer down
+	mainContent := gloss.NewStyle().
+		Height(contentHeight).
+		Render(previewContent)
+
+	return gloss.JoinVertical(gloss.Left, inputBox, mainContent, footer)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -96,6 +123,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		m.height = msg.Height
 
 		const (
 			inputBoxHeight = 3
@@ -148,69 +176,36 @@ func (m *model) visibleRange() (start, startOffset, end int) {
 }
 
 func (m *model) ensureSelectedVisible() {
-	start, _, end := m.visibleRange()
-
-	if m.cursor < start {
-		m.offset = 0
-		for i := 0; i < m.cursor; i++ {
-			m.offset += m.fonts[i].height
-		}
-		return
-	}
-
-	if m.cursor > end {
-		offset := 0
-		for i := 0; i <= m.cursor; i++ {
-			offset += m.fonts[i].height
-		}
-		m.offset = offset - m.viewHeight
-
-		if m.offset < 0 {
-			m.offset = 0
-		}
-		return
-	}
-}
-
-func (m *model) updateVisibleRange() {
 	if len(m.fonts) == 0 {
-		m.start = 0
-		m.end = 0
 		return
 	}
 
-	// Ensure cursor is within bounds
 	if m.cursor >= len(m.fonts) {
 		m.cursor = len(m.fonts) - 1
 	}
 
-	// Find the range of fonts that fit in the visible area
-	totalHeight := 0
-	start := 0
-	end := 0
-
-	// Find start index - scroll to show cursor at top if needed
-	for i := 0; i < len(m.fonts); i++ {
-		if i == m.cursor {
-			start = i
-			break
-		}
+	if m.cursor < 0 {
+		m.cursor = 0
 	}
 
-	// Find end index - fill viewport from start position
-	totalHeight = 0
-	for i := start; i < len(m.fonts) && totalHeight < m.viewHeight; i++ {
-		totalHeight += m.fonts[i].height + 3
-		end = i + 1
+	// Calculate the total height from the start up to and including the cursor
+	heightUpToCursor := 0
+	for i := 0; i <= m.cursor; i++ {
+		heightUpToCursor += m.fonts[i].height
 	}
 
-	// Ensure end doesn't exceed array bounds
-	if end > len(m.fonts) {
-		end = len(m.fonts)
+	// If all items up to cursor fit in the view, start from the top
+	if heightUpToCursor <= m.viewHeight {
+		m.offset = 0
+		return
 	}
 
-	m.start = start
-	m.end = end
+	// Otherwise, scroll so the cursor item is fully visible within viewHeight
+	// Position the view so the cursor item sits at the bottom
+	m.offset = heightUpToCursor - m.viewHeight
+	if m.offset < 0 {
+		m.offset = 0
+	}
 }
 
 type fontsLoadedMsg struct {
