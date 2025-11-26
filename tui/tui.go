@@ -54,7 +54,9 @@ func (m model) View() string {
 	}
 
 	previewContent := m.renderPreviews()
-	// Constrain preview to viewHeight lines to keep status/helpBox visible
+
+	// Limit preview to viewHeight lines to ensure we don't overflow
+	// This is a safety measure in addition to the height constraint
 	lines := strings.Split(previewContent, "\n")
 	if len(lines) > m.viewHeight {
 		lines = lines[:m.viewHeight]
@@ -201,8 +203,15 @@ func (m *model) ensureSelectedVisible() {
 	}
 
 	// Otherwise, scroll so the cursor item is fully visible within viewHeight
-	// Position the view so the cursor item sits at the bottom
-	m.offset = heightUpToCursor - m.viewHeight
+	// Add safety margin to account for rendering variations
+	// Position offset so cursor item is well within the view bounds
+	safeMargin := 3 // Extra lines to account for box styling and padding variations
+	safeViewHeight := m.viewHeight - safeMargin
+	if safeViewHeight < 5 {
+		safeViewHeight = 5 // Ensure minimum view height
+	}
+
+	m.offset = heightUpToCursor - safeViewHeight
 	if m.offset < 0 {
 		m.offset = 0
 	}
@@ -216,7 +225,7 @@ func loadFonts() tea.Msg {
 	fontNames := fig.ListFonts()
 	items := make([]item, 0, len(fontNames))
 
-	for i, name := range fontNames[:20] {
+	for i, name := range fontNames {
 		font, err := fig.Font(name)
 		if err != nil {
 			continue
@@ -278,7 +287,12 @@ func (m model) renderPreviews() string {
 			// Clip the first item if needed
 			if i == start && startOff > 0 {
 				lines := strings.Split(preview, "\n")
-				lines = lines[startOff:]
+				// Cap startOff to the number of lines to prevent out-of-bounds slice
+				safeOffset := startOff
+				if safeOffset > len(lines) {
+					safeOffset = len(lines)
+				}
+				lines = lines[safeOffset:]
 				preview = strings.Join(lines, "\n")
 			}
 

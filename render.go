@@ -111,8 +111,17 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 		leftRunes := []rune(lines[i])
 		rightRunes := []rune(right.lines[i])
 
-		for j := range overlap {
-			li := len(leftRunes) - overlap + j
+		// Cap overlap to the length of rightRunes to prevent out-of-bounds slice
+		safeOverlap := overlap
+		if safeOverlap < 0 {
+			safeOverlap = 0
+		}
+		if safeOverlap > len(rightRunes) {
+			safeOverlap = len(rightRunes)
+		}
+
+		for j := range safeOverlap {
+			li := len(leftRunes) - safeOverlap + j
 			ri := j
 
 			if li < 0 || ri >= len(rightRunes) {
@@ -124,7 +133,7 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 				leftRunes[li] = res.char
 			}
 		}
-		result[i] = string(leftRunes) + string(rightRunes[overlap:])
+		result[i] = string(leftRunes) + string(rightRunes[safeOverlap:])
 	}
 	return result
 }
@@ -157,8 +166,18 @@ func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
 		}
 	}
 
+	// Ensure flush is within valid bounds
+	if flush < 0 {
+		flush = 0
+	}
+
 	for i, row := range glyph.lines {
-		glyph.lines[i] = row[flush:]
+		// Cap flush to the length of the row to prevent out-of-bounds slice
+		safeFlush := flush
+		if safeFlush > len(row) {
+			safeFlush = len(row)
+		}
+		glyph.lines[i] = row[safeFlush:]
 	}
 	glyph.width -= flush
 	return glyph
