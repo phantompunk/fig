@@ -70,7 +70,7 @@ func (m model) View() string {
 	const (
 		inputBoxHeight = 3
 		statusHeight   = 1
-		helpBoxHeight  = 2
+		helpBoxHeight  = 1
 	)
 	footerHeight := statusHeight + helpBoxHeight
 	contentHeight := m.height - inputBoxHeight - footerHeight
@@ -89,7 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
 
 		case "k", "up":
@@ -104,6 +104,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ensureSelectedVisible()
 			}
 
+		case "g":
+			m.cursor=0
+			m.ensureSelectedVisible()
+
+		case "G":
+			m.cursor=len(m.fonts)-1
+			m.ensureSelectedVisible()
+
 		case "i":
 			if m.focusState == focusFontList {
 				m.toggleFocusState()
@@ -115,6 +123,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.toggleFocusState()
 			}
 		}
+
 
 	case fontsLoadedMsg:
 		m.fonts = msg.fonts

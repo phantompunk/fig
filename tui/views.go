@@ -19,8 +19,8 @@ func (m model) textInputBox() string {
 }
 
 func (m model) helpBox() string {
-	controls := "↑/k:up ↓/j:down i:text ctrl+c:quit"
-	list := fmt.Sprintf("%d/%d", m.cursor+1, len(m.fonts))
+	controls := "↑/k:up ↓/j:down i:text q:quit"
+	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.fonts))
 	spacingWidth := m.width - gloss.Width(controls) - gloss.Width(list) - 2
 	if spacingWidth < 0 {
 		spacingWidth = 0
@@ -32,7 +32,7 @@ func (m model) helpBox() string {
 		spacing,
 		list,
 	)
-	return gloss.NewStyle().Padding(0, 1, 0, 1).Render(content)
+	return gloss.NewStyle().Foreground(gloss.Color("#626784")).Padding(0, 1, 0, 1).Render(content)
 }
 
 func (m model) selectedBoxStyle() gloss.Style {
@@ -52,8 +52,11 @@ func (m model) boxStyle() gloss.Style {
 }
 
 func (m model) statusView() string {
+	var status string
 	if len(m.fonts) == 0 || m.cursor >= len(m.fonts) {
-		return fmt.Sprintf(" Count %d, selected: %d", len(m.fonts), m.cursor)
+		status = fmt.Sprintf(" Count %d, selected: %d", len(m.fonts), m.cursor)
+	} else {
+		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.fonts), m.cursor, m.fonts[m.cursor].font.Name(), m.fonts[m.cursor].height, m.viewHeight)
 	}
-	return fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.fonts), m.cursor, m.fonts[m.cursor].font.Name(), m.fonts[m.cursor].height, m.viewHeight)
+	return gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(status)
 }
