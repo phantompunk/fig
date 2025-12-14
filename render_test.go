@@ -19,6 +19,7 @@ func TestCanSmushEqualChars(t *testing.T) {
 		{"Different numbers", '5', '4', false},
 	}
 
+
 	renderer := NewSmushRenderer(EqualChars)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -341,6 +342,12 @@ func TestOverlap(t *testing.T) {
 		// 	input:    []rune{' ', 'H'},
 		// 	expected: 1,
 		// },
+		{
+			name:     "puffy ff",
+			fontName: "puff",
+			input:    []rune{'f', 'f'},
+			expected: 2,
+		},
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -362,3 +369,25 @@ func NewSmushRenderer(mode SmushRule) *Renderer {
 	}
 	return &Renderer{font: font}
 }
+
+func TestRenderer_render(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for receiver constructor.
+		font *FigFont
+		// Named input parameters for target function.
+		text string
+		want []string
+	}{
+		// TODO: Add test cases.
+		{ name: "example test", font: Must(Font("puffy")), text: "ff", want: []string{"A", "B"} },
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := New(tt.font)
+			got := r.render(tt.text)
+			assert.Equal(t, len(tt.want), len(got))
+		})
+	}
+}
+
