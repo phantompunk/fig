@@ -125,14 +125,14 @@ func TestCanSmushHardblank(t *testing.T) {
 		right    rune
 		expected bool
 	}{
-		{"pipe vs slash", '|', '/', true},
-		{"bracket vs pipe", '[', '|', true},
-		{"paren vs bracket", '(', '[', true},
-		{"same hierarchy", '[', ']', true},
-		{"non-hierarchy chars", 'A', 'B', false},
+		{"hardblank + hardblank", '$', '$', true},
+		{"hardblank + space", '$', ' ', true},
+		{"space + hardblank", ' ', '$', true},
+		{"two normal chars", 'A', 'B', false},
+		{"normal + space", 'A', ' ', true},
 	}
 
-	renderer := NewSmushRenderer(Heirarchy)
+	renderer := NewSmushRenderer(Hardblank)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
@@ -372,21 +372,19 @@ func NewSmushRenderer(mode SmushRule) *Renderer {
 
 func TestRenderer_render(t *testing.T) {
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for receiver constructor.
-		font *FigFont
-		// Named input parameters for target function.
-		text string
-		want []string
+		name     string
+		fontName string
+		text     string
+		wantRows int
 	}{
-		// TODO: Add test cases.
-		{ name: "example test", font: Must(Font("puffy")), text: "ff", want: []string{"A", "B"} },
+		{"puffy ff row count", "puffy", "ff", 8},
+		{"standard Hi row count", "standard", "Hi", 6},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := New(tt.font)
+			r := New(Must(Font(tt.fontName)))
 			got := r.render(tt.text)
-			assert.Equal(t, len(tt.want), len(got))
+			assert.Equal(t, tt.wantRows, len(got))
 		})
 	}
 }

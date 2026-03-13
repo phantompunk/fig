@@ -165,32 +165,18 @@ func parseSmushMode(mask int) SmushMode {
 }
 
 func parseLayoutMode(mask int) LayoutMode {
+	// Old FLF layout semantics: negative = full width, zero = kerning,
+	// positive = smushing (rules are in SmushMode; check vertical bits here).
 	if mask < 0 {
 		return LayoutMode{FullWidth: true}
 	}
-
-	isKerning := mask >= 0
-	isUniversal := mask&BitLayoutUniversal != 0
-
-	mode := LayoutMode{
-		// Kerning is set if Bit 0 is active
-		Kerning: isKerning,
-
-		// Universal Smushing is set if Bit 1 is active (this is often the 'Smushing' flag)
-		Universal: isUniversal,
-
-		// Smushing is enabled if Universal Smushing is active
-		Smushing: isUniversal,
-
-		// FullWidth is true only if neither Kerning nor Universal Smushing bits are set
-		// FullWidth: !isKerning && !isUniversal,
-
-		// Vertical Modes (using dedicated higher bits)
+	if mask == 0 {
+		return LayoutMode{Kerning: true}
+	}
+	return LayoutMode{
 		VKerning:  mask&BitLayoutVKerning != 0,
 		VSmushing: mask&BitLayoutVSmushing != 0,
 	}
-
-	return mode
 }
 
 func parseHeader(header string) (Metadata, error) {

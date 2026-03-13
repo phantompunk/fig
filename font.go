@@ -57,8 +57,8 @@ func setRules(meta Metadata) []SmushRule {
 		rules = append(rules, Underscore)
 	}
 
-	if meta.smushMode.Underscore {
-		rules = append(rules, Underscore)
+	if meta.smushMode.OppositePair {
+		rules = append(rules, OppositePair)
 	}
 
 	if meta.smushMode.Hierarchy {
@@ -74,7 +74,7 @@ func setRules(meta Metadata) []SmushRule {
 	}
 
 	if meta.smushMode.Hardblank {
-		rules = append(rules, Hardblank)
+		rules = append(rules, HardblankRule(meta.hardBlank))
 	}
 	return rules
 }

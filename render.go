@@ -280,9 +280,16 @@ func Heirarchy(a, b rune) SmushResult {
 	return SmushResult{char: 0, allowed: false}
 }
 
-func Hardblank(a, b rune) SmushResult {
-	if a == '$' || b == '$' {
-		return SmushResult{char: a, allowed: true}
+func HardblankRule(hardblank rune) SmushRule {
+	return func(a, b rune) SmushResult {
+		if a == hardblank || b == hardblank {
+			return SmushResult{char: a, allowed: true}
+		}
+		return SmushResult{char: 0, allowed: false}
 	}
-	return SmushResult{char: 0, allowed: false}
+}
+
+// Hardblank is the legacy fixed-sentinel version kept for direct test use.
+func Hardblank(a, b rune) SmushResult {
+	return HardblankRule('$')(a, b)
 }
