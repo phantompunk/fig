@@ -8,71 +8,68 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/phantompunk/fig"
+	fig "github.com/phantompunk/fig/internal/font"
+	"github.com/phantompunk/fig/internal/input"
+	"github.com/phantompunk/fig/internal/tui"
 	"github.com/phantompunk/fig/internal/vcs"
-	"github.com/phantompunk/fig/tui"
 	"github.com/spf13/cobra"
 )
 
 var (
 	fontName  string
 	listFonts bool
-	version   string
-	commit    string
 )
 
 func main() {
 	if err := execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Fprintf(os.Stderr, "fig: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func execute() error {
-	rootCmd := initialize()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigCh
-		fmt.Println("Received signal", sig)
-
-		cancel()
-	}()
-
-	return rootCmd.ExecuteContext(ctx)
+	return buildCmd().ExecuteContext(ctx)
 }
 
-func initialize() *cobra.Command {
-	rootCmd := &cobra.Command{
-		Use:  "fig",
-		RunE: figFunc,
+func buildCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "fig",
+		Short:        "Render text as ASCII art using FIGlet fonts",
+		Args:         cobra.ArbitraryArgs,
+		RunE:         run,
+		SilenceUsage: true,
 	}
 
-	rootCmd.Flags().BoolVarP(&listFonts, "list-fonts", "l", false, "List all available fonts")
-	rootCmd.Flags().StringVarP(&fontName, "font", "f", "standard", "Specify a font, default is standard")
+	cmd.Flags().BoolVarP(&listFonts, "list-fonts", "l", false, "List all available fonts")
+	cmd.Flags().StringVarP(&fontName, "font", "f", "standard", "Specify a font, default is standard")
 
-	version, commit = vcs.Version()
-	setVersion(rootCmd)
+	v, commit := vcs.Version()
+	cmd.Version = v
+	cmd.SetVersionTemplate(fmt.Sprintf("%s version %s (%s)\n", "fig", v, commit))
 
-	return rootCmd
+	return cmd
 }
 
-func figFunc(cmd *cobra.Command, args []string) error {
+func run(cmd *cobra.Command, args []string) error {
 	if listFonts {
 		fonts := fig.ListFonts()
 		fmt.Println("Supported fonts:", strings.Join(fonts, ", "))
 		return nil
 	}
 
-	if len(args) == 0 {
+	src := input.Resolve(args)
+	msg, err := src.Read()
+	if err != nil {
+		return err
+	}
+
+	if len(msg) == 0 {
 		return tui.Start()
 	}
 
-	msg := strings.Join(args, "")
 	font, err := fig.Font(fontName)
 	if err != nil {
 		return err
@@ -80,10 +77,4 @@ func figFunc(cmd *cobra.Command, args []string) error {
 
 	fmt.Println(font.Render(msg))
 	return nil
-}
-
-func setVersion(cmd *cobra.Command) {
-	vt := fmt.Sprintf("%s version %s (%s)\n", "fig", version, commit)
-	cmd.SetVersionTemplate(vt)
-	cmd.Version = version
 }

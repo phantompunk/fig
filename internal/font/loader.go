@@ -12,11 +12,11 @@ import (
 )
 
 //go:embed fonts/*.flf
-var figFS embed.FS
+var fontFS embed.FS
 
 // ListFonts returns a list of available font names.
 func ListFonts() []string {
-	files, err := figFS.ReadDir("fonts")
+	files, err := fontFS.ReadDir("fonts")
 	if err != nil {
 		return nil
 	}
@@ -33,7 +33,7 @@ func ListFonts() []string {
 func loadFont(name string) (*FigFont, error) {
 	fileName := filepath.Join("fonts", name+".flf")
 
-	data, err := figFS.ReadFile(fileName)
+	data, err := fontFS.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
