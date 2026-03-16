@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-//go:embed fonts/*.flf
+//go:embed assets/*.flf
 var fontFS embed.FS
 
 // ListFonts returns a list of available font names.
@@ -31,7 +31,7 @@ func ListFonts() []string {
 }
 
 func loadFont(name string) (*FigFont, error) {
-	fileName := filepath.Join("fonts", name+".flf")
+	fileName := filepath.Join("assets", name+".flf")
 
 	data, err := fontFS.ReadFile(fileName)
 	if err != nil {
@@ -174,6 +174,7 @@ func parseLayoutMode(mask int) LayoutMode {
 		return LayoutMode{Kerning: true}
 	}
 	return LayoutMode{
+		Smushing:  true,
 		VKerning:  mask&BitLayoutVKerning != 0,
 		VSmushing: mask&BitLayoutVSmushing != 0,
 	}
@@ -208,7 +209,18 @@ func parseHeader(header string) (Metadata, error) {
 		meta.codeTag = parser.parseInt(8, "code_tag")
 	}
 
+	meta.layoutMode = parseLayoutMode(meta.oldLayout)
 	meta.smushMode = parseSmushMode(meta.fullLayout)
+	const horizontalRuleBits = BitEqualChar | BitUnderscore | BitHierarchy | BitOppositePair | BitBigX | BitHardblank
+	if parser.size > 7 {
+		meta.smushMode.Enabled = meta.fullLayout&BitHSmush != 0
+		meta.layoutMode.Smushing = meta.fullLayout&BitHSmush != 0
+		meta.layoutMode.Kerning = meta.fullLayout&BitKern != 0 && meta.fullLayout&BitHSmush == 0
+		meta.layoutMode.FullWidth = meta.fullLayout&BitKern == 0 && meta.fullLayout&BitHSmush == 0
+		meta.layoutMode.Universal = meta.fullLayout&BitHSmush != 0 && meta.fullLayout&horizontalRuleBits == 0
+	} else {
+		meta.smushMode.Enabled = meta.oldLayout > 0
+	}
 	return meta, parser.err
 }
 
@@ -223,12 +235,16 @@ func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
 
 		line := scanner.Text()
 
+		trim := 1
 		if i == height-1 {
-			line = line[:len(line)-2]
-		} else {
-			line = line[:len(line)-1]
+			trim = 2
 		}
 
+		if len(line) < trim {
+			return Glyph{}, fmt.Errorf("glyph line is too short")
+		}
+
+		line = line[:len(line)-trim]
 		width = max(width, len(line))
 		lines[i] = line
 	}

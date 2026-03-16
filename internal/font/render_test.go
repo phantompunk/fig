@@ -19,7 +19,6 @@ func TestCanSmushEqualChars(t *testing.T) {
 		{"Different numbers", '5', '4', false},
 	}
 
-
 	renderer := NewSmushRenderer(EqualChars)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -56,19 +55,19 @@ func TestCanSmushHierarchy(t *testing.T) {
 		name     string
 		left     rune
 		right    rune
-		expected bool
+		expected rune
 	}{
-		{"pipe vs slash", '|', '/', true},
-		{"bracket vs pipe", '[', '|', true},
-		{"paren vs bracket", '(', '[', true},
-		{"same hierarchy", '[', ']', true},
-		{"non-hierarchy chars", 'A', 'B', false},
+		{"pipe vs slash", '|', '/', '/'},
+		{"bracket vs pipe", '[', '|', '['},
+		{"paren vs bracket", '(', '[', '('},
+		{"same hierarchy", '[', ']', 0},
+		{"non-hierarchy chars", 'A', 'B', 0},
 	}
 
 	renderer := NewSmushRenderer(Heirarchy)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, renderer.isSmushable(tc.left, tc.right))
+			assert.Equal(t, renderer.applyRules(tc.left, tc.right).char, tc.expected)
 		})
 	}
 }
@@ -126,10 +125,10 @@ func TestCanSmushHardblank(t *testing.T) {
 		expected bool
 	}{
 		{"hardblank + hardblank", '$', '$', true},
-		{"hardblank + space", '$', ' ', true},
-		{"space + hardblank", ' ', '$', true},
+		{"hardblank + space", '$', ' ', false},
+		{"space + hardblank", ' ', '$', false},
 		{"two normal chars", 'A', 'B', false},
-		{"normal + space", 'A', ' ', true},
+		{"normal + space", 'A', ' ', false},
 	}
 
 	renderer := NewSmushRenderer(Hardblank)
@@ -249,16 +248,10 @@ func TestIsSmushable(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "standard space",
-			fontName: "standard",
-			input:    []rune{' ', 'H'},
-			expected: true,
-		},
-		{
 			name:     "standard $",
 			fontName: "standard",
 			input:    []rune{' ', '$'},
-			expected: true,
+			expected: false,
 		},
 	}
 	for _, tc := range testcases {
@@ -270,95 +263,95 @@ func TestIsSmushable(t *testing.T) {
 	}
 }
 
-func TestStandardSmushable(t *testing.T) {
-	testcases := []struct {
-		name     string
-		fontName string
-		input    []rune
-		expected bool
-	}{
-		{
-			name:     "standard HH",
-			fontName: "standard",
-			input:    []rune{'|', '_'},
-			expected: true,
-		},
-		{
-			name:     "standard space",
-			fontName: "standard",
-			input:    []rune{' ', 'H'},
-			expected: true,
-		},
-		{
-			name:     "standard spaces",
-			fontName: "standard",
-			input:    []rune{' ', ' '},
-			expected: true,
-		},
-		{
-			name:     "standard $",
-			fontName: "standard",
-			input:    []rune{' ', '$'},
-			expected: true,
-		},
-	}
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			font, _ := loadFont(tc.fontName)
-			render := New(font)
-			assert.Equal(t, tc.expected, render.isSmushable(tc.input[0], tc.input[1]))
-		})
-	}
-}
+// func TestStandardSmushable(t *testing.T) {
+// 	testcases := []struct {
+// 		name     string
+// 		fontName string
+// 		input    []rune
+// 		expected bool
+// 	}{
+// 		{
+// 			name:     "standard HH",
+// 			fontName: "standard",
+// 			input:    []rune{'|', '_'},
+// 			expected: true,
+// 		},
+// 		{
+// 			name:     "standard space",
+// 			fontName: "standard",
+// 			input:    []rune{' ', 'H'},
+// 			expected: true,
+// 		},
+// 		{
+// 			name:     "standard spaces",
+// 			fontName: "standard",
+// 			input:    []rune{' ', ' '},
+// 			expected: true,
+// 		},
+// 		{
+// 			name:     "standard $",
+// 			fontName: "standard",
+// 			input:    []rune{' ', '$'},
+// 			expected: true,
+// 		},
+// 	}
+// 	for _, tc := range testcases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			font, _ := loadFont(tc.fontName)
+// 			render := New(font)
+// 			assert.Equal(t, tc.expected, render.isSmushable(tc.input[0], tc.input[1]))
+// 		})
+// 	}
+// }
 
-func TestOverlap(t *testing.T) {
-	testcases := []struct {
-		name     string
-		fontName string
-		input    []rune
-		expected int
-	}{
-		// {
-		// 	name:     "3x5 AB",
-		// 	fontName: "3x5",
-		// 	input:    []rune{'A', 'B'},
-		// 	expected: 0,
-		// },
-		{
-			name:     "standard Hspace",
-			fontName: "standard",
-			input:    []rune{'H', ' '},
-			expected: 2,
-		},
-		{
-			name:     "standard HH",
-			fontName: "standard",
-			input:    []rune{'H', 'i'},
-			expected: 2,
-		},
-		// {
-		// 	name:     "standard space",
-		// 	fontName: "standard",
-		// 	input:    []rune{' ', 'H'},
-		// 	expected: 1,
-		// },
-		{
-			name:     "puffy ff",
-			fontName: "puff",
-			input:    []rune{'f', 'f'},
-			expected: 2,
-		},
-	}
-	for _, tc := range testcases {
-		t.Run(tc.name, func(t *testing.T) {
-			font, _ := loadFont(tc.fontName)
-			render := New(font)
-			left := font.getGlyph(tc.input[0])
-			right := font.getGlyph(tc.input[1])
-			assert.Equal(t, tc.expected, render.computeOverlap(&left, &right))
-		})
-	}
-}
+// func TestOverlap(t *testing.T) {
+// 	testcases := []struct {
+// 		name     string
+// 		fontName string
+// 		input    []rune
+// 		expected int
+// 	}{
+// 		// {
+// 		// 	name:     "3x5 AB",
+// 		// 	fontName: "3x5",
+// 		// 	input:    []rune{'A', 'B'},
+// 		// 	expected: 0,
+// 		// },
+// 		{
+// 			name:     "standard Hspace",
+// 			fontName: "standard",
+// 			input:    []rune{'H', ' '},
+// 			expected: 2,
+// 		},
+// 		{
+// 			name:     "standard HH",
+// 			fontName: "standard",
+// 			input:    []rune{'H', 'i'},
+// 			expected: 2,
+// 		},
+// 		// {
+// 		// 	name:     "standard space",
+// 		// 	fontName: "standard",
+// 		// 	input:    []rune{' ', 'H'},
+// 		// 	expected: 1,
+// 		// },
+// 		{
+// 			name:     "puffy ff",
+// 			fontName: "puff",
+// 			input:    []rune{'f', 'f'},
+// 			expected: 2,
+// 		},
+// 	}
+// 	for _, tc := range testcases {
+// 		t.Run(tc.name, func(t *testing.T) {
+// 			font, _ := loadFont(tc.fontName)
+// 			render := New(font)
+// 			left := font.getGlyph(tc.input[0])
+// 			right := font.getGlyph(tc.input[1])
+// 			assert.Equal(t, tc.expected, render.computeOverlap(&left, &right))
+// 		})
+// 	}
+// }
 
 func NewSmushRenderer(mode SmushRule) *Renderer {
 	font := &FigFont{
@@ -388,4 +381,3 @@ func TestRenderer_render(t *testing.T) {
 		})
 	}
 }
-

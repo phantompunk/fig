@@ -50,15 +50,11 @@ func NewFigFont(name string, meta Metadata) *FigFont {
 func setRules(meta Metadata) []SmushRule {
 	rules := []SmushRule{}
 	if meta.smushMode.EqualChar {
-		rules = append(rules, EqualChars)
+		rules = append(rules, EqualCharsRule(meta.hardBlank))
 	}
 
 	if meta.smushMode.Underscore {
 		rules = append(rules, Underscore)
-	}
-
-	if meta.smushMode.OppositePair {
-		rules = append(rules, OppositePair)
 	}
 
 	if meta.smushMode.Hierarchy {

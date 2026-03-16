@@ -35,65 +35,52 @@ func (r *Renderer) Lines(text string) []string {
 func (r *Renderer) render(text string) []string {
 	lines := make([]string, r.font.metadata.height)
 
-	var prev *Glyph
+	first := true
 	for _, char := range text {
 		g := r.font.getGlyph(char)
 
-		if prev == nil {
-			prev = r.leftFlush(&g)
-			copy(lines, prev.lines)
-			prev = &g
+		if first {
+			g = *r.leftFlush(&g)
+			copy(lines, g.lines)
+			first = false
 			continue
 		}
 
-		overlap := r.computeOverlap(prev, &g)
+		overlap := r.computeOverlap(lines, &g)
 		lines = r.merge(lines, &g, overlap)
-		prev = &g
 	}
 	return lines
 }
 
-func (r *Renderer) computeOverlap(left, right *Glyph) int {
+func (r *Renderer) computeOverlap(leftLines []string, right *Glyph) int {
+	if r.font.metadata.layoutMode.FullWidth {
+		return 0
+	}
+
 	minDist := r.font.metadata.maxLength
 
-	for row := range len(left.lines) {
-		leftRunes := []rune(left.lines[row])
+	for row := range len(leftLines) {
+		leftRunes := []rune(leftLines[row])
 		rightRunes := []rune(right.lines[row])
 
-		dist := 0
-		ri := 0
-		li := len(leftRunes) - 1
-		for li > 0 && leftRunes[li] == ' ' {
-			li--
+		leftEnd := len(leftRunes)
+		for leftEnd > 0 && leftRunes[leftEnd-1] == ' ' {
+			leftEnd--
 		}
-		for ri < len(rightRunes) && rightRunes[ri] == ' ' {
-			ri++
-		}
-
-		if li < 0 || ri >= len(rightRunes) {
-			continue
+		rightStart := 0
+		for rightStart < len(rightRunes) && rightRunes[rightStart] == ' ' {
+			rightStart++
 		}
 
-		for {
-			leftPos := li - dist
-			rightPos := ri + dist
-
-			if leftPos < 0 || rightPos >= len(rightRunes) {
-				break
+		curDist := (len(leftRunes) - leftEnd) + rightStart
+		if leftEnd > 0 && rightStart < len(rightRunes) {
+			if r.isSmushable(leftRunes[leftEnd-1], rightRunes[rightStart]) {
+				curDist++
 			}
-
-			lChar := leftRunes[leftPos]
-			rChar := rightRunes[rightPos]
-
-			// fmt.Printf("Dist: %d, Row %d: %q + %q, Chars: %q + %q, Sms: %v\n", dist, row, left.lines[row], right.lines[row], string(lChar), string(rChar), r.isSmushable(lChar, rChar))
-			if !r.isSmushable(lChar, rChar) {
-				break
-			}
-			dist++
 		}
 
-		if dist < minDist {
-			minDist = dist
+		if curDist < minDist {
+			minDist = curDist
 		}
 	}
 
@@ -128,9 +115,15 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 				continue
 			}
 
-			res := r.applyRules(leftRunes[li], rightRunes[ri])
-			if res.allowed {
-				leftRunes[li] = res.char
+			lChar := leftRunes[li]
+			rChar := rightRunes[ri]
+			if lChar == ' ' {
+				leftRunes[li] = rChar
+			} else if rChar != ' ' {
+				res := r.applyRules(lChar, rChar)
+				if res.allowed {
+					leftRunes[li] = res.char
+				}
 			}
 		}
 		result[i] = string(leftRunes) + string(rightRunes[safeOverlap:])
@@ -139,11 +132,7 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 }
 
 func (r *Renderer) isSmushable(a, b rune) bool {
-	if a == ' ' || b == ' ' {
-		return true
-	}
-	result := r.applyRules(a, b)
-	return result.allowed
+	return r.applyRules(a, b).allowed
 }
 
 func (r *Renderer) applyRules(a, b rune) SmushResult {
@@ -187,11 +176,9 @@ func (r *Renderer) linesToString(lines []string) string {
 	result := make([]string, 0, len(lines))
 	for _, line := range lines {
 		row := strings.ReplaceAll(line, string(r.font.metadata.hardBlank), " ")
-		if strings.TrimSpace(row) != "" {
-			result = append(result, row)
-		}
+		result = append(result, row)
 	}
-	return strings.Join(result, "\n")
+	return strings.Join(result, "\n") + "\n"
 }
 
 type SmushResult struct {
@@ -201,11 +188,18 @@ type SmushResult struct {
 
 type SmushRule func(a, b rune) SmushResult
 
-func EqualChars(a, b rune) SmushResult {
-	if a == b && a != '$' {
-		return SmushResult{char: a, allowed: true}
+func EqualCharsRule(hardblank rune) SmushRule {
+	return func(a, b rune) SmushResult {
+		if a == b && a != hardblank {
+			return SmushResult{char: a, allowed: true}
+		}
+		return SmushResult{char: 0, allowed: false}
 	}
-	return SmushResult{char: 0, allowed: false}
+}
+
+// EqualChars is the legacy fixed-sentinel version kept for direct test use.
+func EqualChars(a, b rune) SmushResult {
+	return EqualCharsRule('$')(a, b)
 }
 
 func BigX(a, b rune) SmushResult {
@@ -282,7 +276,7 @@ func Heirarchy(a, b rune) SmushResult {
 
 func HardblankRule(hardblank rune) SmushRule {
 	return func(a, b rune) SmushResult {
-		if a == hardblank || b == hardblank {
+		if a == hardblank && b == hardblank {
 			return SmushResult{char: a, allowed: true}
 		}
 		return SmushResult{char: 0, allowed: false}

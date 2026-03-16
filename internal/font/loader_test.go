@@ -100,7 +100,7 @@ func TestParseLayoutModes(t *testing.T) {
 		{
 			name:     "puffy",
 			input:    1,
-			expected: LayoutMode{},
+			expected: LayoutMode{Smushing: true},
 		},
 		// {
 		// 	name:     "stop",
