@@ -4,7 +4,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"unicode"
 )
 
 type Source interface {
@@ -48,6 +47,9 @@ func stdinHasData() bool {
 }
 
 func normalizeInput(s string) string {
+	// Expand tabs to spaces
+	s = expandTabs(s, 4)
+
 	// Trim surrounding whitespace.
 	s = strings.TrimSpace(s)
 
@@ -58,8 +60,30 @@ func normalizeInput(s string) string {
 	// Trim trailing whitespace from each line.
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
-		lines[i] = strings.TrimRightFunc(line, unicode.IsSpace)
+		lines[i] = strings.TrimSpace(line)
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func expandTabs(s string, tabsize int) string {
+	var result strings.Builder
+	column := 0
+	for _, r := range s {
+		if r == '\t' {
+			spaces := tabsize - (column % tabsize)
+			for range spaces {
+				result.WriteByte(' ')
+				column++
+			}
+		} else {
+			result.WriteRune(r)
+			if r == '\n' {
+				column = 0
+			} else {
+				column++
+			}
+		}
+	}
+	return result.String()
 }
