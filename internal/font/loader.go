@@ -16,7 +16,7 @@ var fontFS embed.FS
 
 // ListFonts returns a list of available font names.
 func ListFonts() []string {
-	files, err := fontFS.ReadDir("fonts")
+	files, err := fontFS.ReadDir("assets")
 	if err != nil {
 		return nil
 	}

@@ -17,7 +17,7 @@ type Args struct {
 
 func (a Args) Read() (string, error) {
 	if len(a.Args) == 0 {
-		return "", io.EOF
+		return "", nil
 	}
 	return normalizeInput(strings.Join(a.Args, " ")), nil
 }
