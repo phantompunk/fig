@@ -18,6 +18,9 @@ import (
 var (
 	fontName  string
 	listFonts bool
+	center    bool
+	right     bool
+	// rtl       bool
 )
 
 func main() {
@@ -45,6 +48,9 @@ func buildCmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&listFonts, "list-fonts", "l", false, "List all available fonts")
 	cmd.Flags().StringVarP(&fontName, "font", "f", "standard", "Specify a font, default is standard")
+	cmd.Flags().BoolVarP(&center, "center", "c", false, "Center text in terminal")
+	cmd.Flags().BoolVarP(&right, "right", "r", false, "Right align text in terminal")
+	// cmd.Flags().BoolVarP(&rtl, "right-to-left", "rtl", false, "Print text right to left")
 
 	v, commit := vcs.Version()
 	cmd.Version = v

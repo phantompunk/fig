@@ -121,8 +121,8 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 				leftRunes[li] = rChar
 			} else if rChar != ' ' {
 				res := r.applyRules(lChar, rChar)
-				if res.allowed {
-					leftRunes[li] = res.char
+				if res.Ok {
+					leftRunes[li] = res.Char
 				}
 			}
 		}
@@ -132,16 +132,16 @@ func (r *Renderer) merge(lines []string, right *Glyph, overlap int) []string {
 }
 
 func (r *Renderer) isSmushable(a, b rune) bool {
-	return r.applyRules(a, b).allowed
+	return r.applyRules(a, b).Ok
 }
 
 func (r *Renderer) applyRules(a, b rune) SmushResult {
 	for _, rule := range r.font.rules {
-		if res := rule(a, b); res.allowed {
+		if res := rule(a, b); res.Ok {
 			return res
 		}
 	}
-	return SmushResult{char: 0, allowed: false}
+	return SmushResult{Char: 0, Ok: false}
 }
 
 func (r *Renderer) leftFlush(glyph *Glyph) *Glyph {
@@ -182,8 +182,8 @@ func (r *Renderer) linesToString(lines []string) string {
 }
 
 type SmushResult struct {
-	char    rune
-	allowed bool
+	Char rune
+	Ok   bool
 }
 
 type SmushRule func(a, b rune) SmushResult
@@ -191,9 +191,9 @@ type SmushRule func(a, b rune) SmushResult
 func EqualCharsRule(hardblank rune) SmushRule {
 	return func(a, b rune) SmushResult {
 		if a == b && a != hardblank {
-			return SmushResult{char: a, allowed: true}
+			return SmushResult{Char: a, Ok: true}
 		}
-		return SmushResult{char: 0, allowed: false}
+		return SmushResult{Char: 0, Ok: false}
 	}
 }
 
@@ -204,13 +204,13 @@ func EqualChars(a, b rune) SmushResult {
 
 func BigX(a, b rune) SmushResult {
 	if a == '/' && b == '\\' {
-		return SmushResult{char: '|', allowed: true}
+		return SmushResult{Char: '|', Ok: true}
 	} else if a == '\\' && b == '/' {
-		return SmushResult{char: 'Y', allowed: true}
+		return SmushResult{Char: 'Y', Ok: true}
 	} else if a == '>' && b == '<' {
-		return SmushResult{char: 'X', allowed: true}
+		return SmushResult{Char: 'X', Ok: true}
 	}
-	return SmushResult{char: 0, allowed: false}
+	return SmushResult{Char: 0, Ok: false}
 }
 
 func Underscore(a, b rune) SmushResult {
@@ -229,11 +229,11 @@ func Underscore(a, b rune) SmushResult {
 	}
 
 	if _, found := pairs[a]; found && b == '_' {
-		return SmushResult{char: a, allowed: true}
+		return SmushResult{Char: a, Ok: true}
 	} else if _, found := pairs[b]; found && a == '_' {
-		return SmushResult{char: b, allowed: true}
+		return SmushResult{Char: b, Ok: true}
 	}
-	return SmushResult{char: 0, allowed: false}
+	return SmushResult{Char: 0, Ok: false}
 }
 
 func OppositePair(a, b rune) SmushResult {
@@ -246,9 +246,9 @@ func OppositePair(a, b rune) SmushResult {
 		')': '(',
 	}
 	if pairs[a] == b {
-		return SmushResult{char: '|', allowed: true}
+		return SmushResult{Char: '|', Ok: true}
 	}
-	return SmushResult{char: 0, allowed: false}
+	return SmushResult{Char: 0, Ok: false}
 }
 
 func Heirarchy(a, b rune) SmushResult {
@@ -267,19 +267,19 @@ func Heirarchy(a, b rune) SmushResult {
 	}
 
 	if ch[a] > ch[b] {
-		return SmushResult{char: a, allowed: true}
+		return SmushResult{Char: a, Ok: true}
 	} else if ch[a] < ch[b] {
-		return SmushResult{char: b, allowed: true}
+		return SmushResult{Char: b, Ok: true}
 	}
-	return SmushResult{char: 0, allowed: false}
+	return SmushResult{Char: 0, Ok: false}
 }
 
 func HardblankRule(hardblank rune) SmushRule {
 	return func(a, b rune) SmushResult {
 		if a == hardblank && b == hardblank {
-			return SmushResult{char: a, allowed: true}
+			return SmushResult{Char: hardblank, Ok: true}
 		}
-		return SmushResult{char: 0, allowed: false}
+		return SmushResult{Char: 0, Ok: false}
 	}
 }
 

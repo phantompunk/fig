@@ -67,7 +67,7 @@ func TestCanSmushHierarchy(t *testing.T) {
 	renderer := NewSmushRenderer(Heirarchy)
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, renderer.applyRules(tc.left, tc.right).char, tc.expected)
+			assert.Equal(t, renderer.applyRules(tc.left, tc.right).Char, tc.expected)
 		})
 	}
 }

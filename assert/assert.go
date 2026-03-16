@@ -68,3 +68,40 @@ func Golden(t *testing.T, name, actual string, update bool) {
 	}
 	Equal(t, string(want), actual)
 }
+
+func CanvasEqual(t *testing.T, want, got [][]rune) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Errorf("canvas height mismatch: want %d, got %d", len(want), len(got))
+	}
+
+	for y := range want {
+		if len(want[y]) != len(got[y]) {
+			t.Errorf("canvas row %d width mismatch: want %d, got %d", y, len(want[y]), len(got[y]))
+			return
+		}
+
+		// 2. Check individual runes
+		for x := 0; x < len(want[y]); x++ {
+			if want[y][x] != got[y][x] {
+				t.Errorf("mismatch at [%d, %d]: want %q, got %q", y, x, want[y][x], got[y][x])
+				return
+			}
+		}
+	}
+}
+
+func RowEqual(t *testing.T, want, got []rune) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Errorf("row width mismatch: want %d, got %d", len(want), len(got))
+	}
+
+	for idx := range want {
+		if want[idx] != got[idx] {
+			t.Errorf("unexpected cell at %d: want %q, got %q", idx, want[idx], got[idx])
+		}
+	}
+}
