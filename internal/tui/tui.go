@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"fmt"
 	"strings"
 
@@ -8,9 +9,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 	gloss "charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/phantompunk/fig/assets"
 	"github.com/phantompunk/fig/internal/font"
 	"github.com/phantompunk/fig/internal/render"
 )
+
+var tagCycle = []string{"all", "hot", "big", "small", "art", "retro"}
 
 type focusState int
 
@@ -24,6 +28,7 @@ type item struct {
 	name   string
 	index  int
 	height int
+	tags   []string
 }
 
 type model struct {
@@ -33,6 +38,8 @@ type model struct {
 	fonts         []item
 	filteredFonts []item
 	filterQuery   string
+	tagMap        font.TagMap
+	activeTag     string
 	text          string
 	cursor        int
 	width         int
@@ -49,16 +56,22 @@ func newModel() *model {
 	textInput := textinput.New()
 	filterInput := textinput.New()
 	filterInput.Placeholder = "filter fonts..."
+	tm, err := font.LoadTagMap(assets.FontsYAML)
+	if err != nil {
+		tm = font.TagMap{}
+	}
 	return &model{
 		textInput:   textInput,
 		filterInput: filterInput,
 		engine:      render.New(font.BundledLoader()),
+		tagMap:      tm,
+		activeTag:   "all",
 	}
 }
 
 func (m model) Init() tea.Cmd {
 	return func() tea.Msg {
-		return loadFontsWithEngine(m.engine)
+		return loadFontsWithEngine(m.engine, m.tagMap)
 	}
 }
 
@@ -174,6 +187,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ensureSelectedVisible()
 			}
 
+		case "tab":
+			if m.focusState == focusFontList {
+				m.activeTag = nextTag(m.activeTag)
+				m.applyFilter()
+				m.cursor = 0
+				m.ensureSelectedVisible()
+			}
+
 		case "/":
 			if m.focusState == focusFontList {
 				m.focusState = focusFilter
@@ -260,18 +281,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) applyFilter() {
-	if m.filterQuery == "" {
+	q := strings.ToLower(m.filterQuery)
+	tagActive := m.activeTag != "all"
+	nameActive := q != ""
+
+	if !tagActive && !nameActive {
 		m.filteredFonts = m.fonts
 		return
 	}
-	q := strings.ToLower(m.filterQuery)
+
 	result := make([]item, 0)
 	for _, f := range m.fonts {
-		if strings.Contains(strings.ToLower(f.name), q) {
-			result = append(result, f)
+		if nameActive && !strings.Contains(strings.ToLower(f.name), q) {
+			continue
 		}
+		if tagActive {
+			found := slices.Contains(f.tags, m.activeTag)
+			if !found {
+				continue
+			}
+		}
+		result = append(result, f)
 	}
 	m.filteredFonts = result
+}
+
+func nextTag(current string) string {
+	for i, t := range tagCycle {
+		if t == current {
+			return tagCycle[(i+1)%len(tagCycle)]
+		}
+	}
+	return tagCycle[0]
 }
 
 func (m *model) visibleRange() (start, startOffset, end int) {
@@ -369,7 +410,7 @@ type fontsLoadedMsg struct {
 	fonts []item
 }
 
-func loadFontsWithEngine(engine *render.Engine) tea.Msg {
+func loadFontsWithEngine(engine *render.Engine, tm font.TagMap) tea.Msg {
 	fontNames, err := engine.ListFonts()
 	if err != nil {
 		return fontsLoadedMsg{fonts: nil}
@@ -385,6 +426,7 @@ func loadFontsWithEngine(engine *render.Engine) tea.Msg {
 			name:   name,
 			index:  i,
 			height: h + 3,
+			tags:   tm[name],
 		})
 	}
 

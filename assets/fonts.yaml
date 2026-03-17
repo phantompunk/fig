@@ -1,0 +1,605 @@
+fonts:
+  - name: "3-d"
+    tags: ["big"]
+  - name: "3d-ascii"
+    tags: ["big"]
+  - name: "3d"
+    tags: ["big"]
+  - name: "3d_diagonal"
+    tags: ["big"]
+  - name: "3x5"
+    tags: ["small", "retro"]
+  - name: "4max"
+    tags: ["small"]
+  - name: "5lineoblique"
+    tags: ["art"]
+  - name: "acrobatic"
+    tags: ["art"]
+  - name: "alligator"
+    tags: ["big", "art"]
+  - name: "alligator2"
+    tags: ["big", "art"]
+  - name: "alligator3"
+    tags: ["big", "art"]
+  - name: "alpha"
+    tags: ["big"]
+  - name: "alphabet"
+    tags: ["small"]
+  - name: "amc3line"
+    tags: ["small"]
+  - name: "amc3liv1"
+    tags: ["small"]
+  - name: "amcaaa01"
+    tags: ["retro"]
+  - name: "amcneko"
+    tags: ["art"]
+  - name: "amcrazo2"
+    tags: ["art"]
+  - name: "amcrazor"
+    tags: ["art"]
+  - name: "amcslash"
+    tags: ["art"]
+  - name: "amcslder"
+    tags: ["art"]
+  - name: "amcthin"
+    tags: ["small"]
+  - name: "amctubes"
+    tags: ["retro"]
+  - name: "amcun1"
+    tags: ["art"]
+  - name: "ansi_regular"
+    tags: ["hot", "retro"]
+  - name: "ansi_shadow"
+    tags: ["hot"]
+  - name: "arrows"
+    tags: ["small", "retro"]
+  - name: "ascii_new_roman"
+    tags: ["art"]
+  - name: "avatar"
+    tags: ["art"]
+  - name: "banner"
+    tags: ["hot", "retro"]
+  - name: "banner3-D"
+    tags: ["big"]
+  - name: "banner3"
+    tags: ["big"]
+  - name: "banner4"
+    tags: ["big"]
+  - name: "barbwire"
+    tags: ["art"]
+  - name: "basic"
+    tags: ["small"]
+  - name: "bear"
+    tags: ["art"]
+  - name: "bell"
+    tags: ["small", "retro"]
+  - name: "big money-nw"
+    tags: ["big"]
+  - name: "big money-se"
+    tags: ["big"]
+  - name: "big money-sw"
+    tags: ["big"]
+  - name: "big"
+    tags: ["hot", "big"]
+  - name: "bigchief"
+    tags: ["big", "art"]
+  - name: "bigfig"
+    tags: ["big"]
+  - name: "binary"
+    tags: ["retro"]
+  - name: "block"
+    tags: ["hot", "big"]
+  - name: "blocks"
+    tags: ["retro"]
+  - name: "bloody"
+    tags: ["big", "art"]
+  - name: "bolger"
+    tags: ["art"]
+  - name: "braced"
+    tags: ["art"]
+  - name: "bright"
+    tags: ["art"]
+  - name: "broadway"
+    tags: ["hot", "big", "art"]
+  - name: "broadway_kb"
+    tags: ["big", "art"]
+  - name: "bubble"
+    tags: ["art"]
+  - name: "bulbhead"
+    tags: ["big", "art"]
+  - name: "calgphy2"
+    tags: ["art"]
+  - name: "caligraphy"
+    tags: ["art"]
+  - name: "caligraphy2"
+    tags: ["art"]
+  - name: "calvin s"
+    tags: ["art"]
+  - name: "cards"
+    tags: ["retro"]
+  - name: "catwalk"
+    tags: ["art"]
+  - name: "chiseled"
+    tags: ["art"]
+  - name: "chunky"
+    tags: ["big"]
+  - name: "coinstak"
+    tags: ["big", "retro"]
+  - name: "cola"
+    tags: ["art"]
+  - name: "colossal"
+    tags: ["hot", "big"]
+  - name: "computer"
+    tags: ["retro"]
+  - name: "contessa"
+    tags: ["art"]
+  - name: "contrast"
+    tags: ["art"]
+  - name: "cosmic"
+    tags: ["big", "art"]
+  - name: "cosmike"
+    tags: ["art"]
+  - name: "crawford"
+    tags: ["art"]
+  - name: "crawford2"
+    tags: ["art"]
+  - name: "crazy"
+    tags: ["art"]
+  - name: "cricket"
+    tags: ["art"]
+  - name: "cursive"
+    tags: ["art"]
+  - name: "cyberlarge"
+    tags: ["big", "retro"]
+  - name: "cybermedium"
+    tags: ["retro"]
+  - name: "cybersmall"
+    tags: ["small", "retro"]
+  - name: "cygnet"
+    tags: ["art"]
+  - name: "dancing font"
+    tags: ["art"]
+  - name: "dancingfont"
+    tags: ["art"]
+  - name: "decimal"
+    tags: ["small", "retro"]
+  - name: "defleppard"
+    tags: ["big", "art"]
+  - name: "delta corps priest 1"
+    tags: ["big", "art"]
+  - name: "diamond"
+    tags: ["art"]
+  - name: "dietcola"
+    tags: ["art"]
+  - name: "digital"
+    tags: ["hot", "retro"]
+  - name: "doh"
+    tags: ["big"]
+  - name: "doom"
+    tags: ["hot", "big"]
+  - name: "dos rebel"
+    tags: ["retro"]
+  - name: "dotmatrix"
+    tags: ["retro"]
+  - name: "double"
+    tags: ["big"]
+  - name: "doubleshorts"
+    tags: ["small"]
+  - name: "drpepper"
+    tags: ["art"]
+  - name: "eftichess"
+    tags: ["retro"]
+  - name: "eftifont"
+    tags: ["art"]
+  - name: "eftipiti"
+    tags: ["art"]
+  - name: "eftirobot"
+    tags: ["retro"]
+  - name: "eftitalic"
+    tags: ["art"]
+  - name: "eftiw"
+    tags: ["art"]
+  - name: "eftiwater"
+    tags: ["art"]
+  - name: "electronic"
+    tags: ["retro"]
+  - name: "elite"
+    tags: ["art"]
+  - name: "epic"
+    tags: ["hot", "big"]
+  - name: "fender"
+    tags: ["art"]
+  - name: "filter"
+    tags: ["art"]
+  - name: "fire_font-k"
+    tags: ["big", "art"]
+  - name: "fire_font-s"
+    tags: ["art"]
+  - name: "flipped"
+    tags: ["art"]
+  - name: "flowerpower"
+    tags: ["big", "art"]
+  - name: "fourtops"
+    tags: ["art"]
+  - name: "fraktur"
+    tags: ["art"]
+  - name: "funface"
+    tags: ["big", "art"]
+  - name: "funfaces"
+    tags: ["big", "art"]
+  - name: "fuzzy"
+    tags: ["art"]
+  - name: "georgi16"
+    tags: ["big"]
+  - name: "georgia11"
+    tags: ["big"]
+  - name: "ghost"
+    tags: ["art"]
+  - name: "ghoulish"
+    tags: ["art"]
+  - name: "glenyn"
+    tags: ["art"]
+  - name: "goofy"
+    tags: ["art"]
+  - name: "gothic"
+    tags: ["art"]
+  - name: "graceful"
+    tags: ["art"]
+  - name: "gradient"
+    tags: ["art"]
+  - name: "graffiti"
+    tags: ["hot", "big", "art"]
+  - name: "greek"
+    tags: ["art"]
+  - name: "halfiwi"
+    tags: ["small"]
+  - name: "heart_left"
+    tags: ["small", "art"]
+  - name: "heart_right"
+    tags: ["small", "art"]
+  - name: "henry3d"
+    tags: ["big"]
+  - name: "hex"
+    tags: ["small", "retro"]
+  - name: "hieroglyphs"
+    tags: ["art"]
+  - name: "hollywood"
+    tags: ["big", "art"]
+  - name: "horizonteft"
+    tags: ["small", "retro"]
+  - name: "horizontalright"
+    tags: ["small", "retro"]
+  - name: "impossible"
+    tags: ["big", "art"]
+  - name: "invita"
+    tags: ["art"]
+  - name: "isometric1"
+    tags: ["hot", "big"]
+  - name: "isometric2"
+    tags: ["big"]
+  - name: "isometric3"
+    tags: ["big"]
+  - name: "isometric4"
+    tags: ["big"]
+  - name: "italic"
+    tags: ["art"]
+  - name: "ivrit"
+    tags: ["art"]
+  - name: "jacky"
+    tags: ["art"]
+  - name: "jazmine"
+    tags: ["art"]
+  - name: "jerusalem"
+    tags: ["art"]
+  - name: "js block letters"
+    tags: ["big"]
+  - name: "js bracket letters"
+    tags: ["art"]
+  - name: "js capital curves"
+    tags: ["art"]
+  - name: "js cursive"
+    tags: ["art"]
+  - name: "js stick letters"
+    tags: ["small", "art"]
+  - name: "katakana"
+    tags: ["art"]
+  - name: "kban"
+    tags: ["retro"]
+  - name: "keyboard"
+    tags: ["retro"]
+  - name: "knob"
+    tags: ["art"]
+  - name: "koholint"
+    tags: ["retro"]
+  - name: "kompaktblk"
+    tags: ["small", "retro"]
+  - name: "konto"
+    tags: ["art"]
+  - name: "kontoslant"
+    tags: ["art"]
+  - name: "larry3d"
+    tags: ["hot", "big"]
+  - name: "lcd"
+    tags: ["retro"]
+  - name: "lean"
+    tags: ["hot"]
+  - name: "letters"
+    tags: ["big"]
+  - name: "lildevil"
+    tags: ["art"]
+  - name: "lineblocks"
+    tags: ["retro"]
+  - name: "linux"
+    tags: ["retro"]
+  - name: "lockergnome"
+    tags: ["big"]
+  - name: "madrid"
+    tags: ["art"]
+  - name: "marquee"
+    tags: ["retro"]
+  - name: "maxfour"
+    tags: ["small"]
+  - name: "maxiwi"
+    tags: ["big"]
+  - name: "merlin1"
+    tags: ["big", "art"]
+  - name: "merlin2"
+    tags: ["big", "art"]
+  - name: "mike"
+    tags: ["art"]
+  - name: "mini"
+    tags: ["small"]
+  - name: "miniwi"
+    tags: ["small"]
+  - name: "mirror"
+    tags: ["art"]
+  - name: "mnemonic"
+    tags: ["small", "retro"]
+  - name: "modular"
+    tags: ["retro"]
+  - name: "mono9"
+    tags: ["small", "retro"]
+  - name: "morse"
+    tags: ["small", "retro"]
+  - name: "morse2"
+    tags: ["small", "retro"]
+  - name: "moscow"
+    tags: ["art"]
+  - name: "mshebrew210"
+    tags: ["art"]
+  - name: "muzzle"
+    tags: ["art"]
+  - name: "nancyj-fancy"
+    tags: ["big", "art"]
+  - name: "nancyj-improved"
+    tags: ["big", "art"]
+  - name: "nancyj-underlined"
+    tags: ["big", "art"]
+  - name: "nancyj"
+    tags: ["big", "art"]
+  - name: "nipples"
+    tags: ["art"]
+  - name: "nscript"
+    tags: ["art"]
+  - name: "ntgreek"
+    tags: ["art"]
+  - name: "nv script"
+    tags: ["art"]
+  - name: "o8"
+    tags: ["big", "retro"]
+  - name: "octal"
+    tags: ["small", "retro"]
+  - name: "ogre"
+    tags: ["hot", "big"]
+  - name: "oldbanner"
+    tags: ["retro"]
+  - name: "os2"
+    tags: ["retro"]
+  - name: "pawp"
+    tags: ["art"]
+  - name: "peaks"
+    tags: ["art"]
+  - name: "peaksslant"
+    tags: ["art"]
+  - name: "pebbles"
+    tags: ["art"]
+  - name: "pepper"
+    tags: ["art"]
+  - name: "poison"
+    tags: ["big", "art"]
+  - name: "puffy"
+    tags: ["big", "art"]
+  - name: "puzzle"
+    tags: ["retro"]
+  - name: "pyramid"
+    tags: ["big"]
+  - name: "rammstein"
+    tags: ["big", "art"]
+  - name: "rectangles"
+    tags: ["retro"]
+  - name: "red_phoenix"
+    tags: ["big", "art"]
+  - name: "relief"
+    tags: ["big"]
+  - name: "relief2"
+    tags: ["big"]
+  - name: "rev"
+    tags: ["retro"]
+  - name: "reverse"
+    tags: ["retro"]
+  - name: "roman"
+    tags: ["hot", "big"]
+  - name: "rot13"
+    tags: ["retro"]
+  - name: "rotated"
+    tags: ["art"]
+  - name: "rounded"
+    tags: ["art"]
+  - name: "rowancap"
+    tags: ["big"]
+  - name: "rozzo"
+    tags: ["big"]
+  - name: "runic"
+    tags: ["art"]
+  - name: "runyc"
+    tags: ["art"]
+  - name: "s-relief"
+    tags: ["big"]
+  - name: "santaclara"
+    tags: ["art"]
+  - name: "sblood"
+    tags: ["big", "art"]
+  - name: "script"
+    tags: ["hot", "art"]
+  - name: "serifcap"
+    tags: ["art"]
+  - name: "shadow"
+    tags: ["hot"]
+  - name: "shimrod"
+    tags: ["art"]
+  - name: "short"
+    tags: ["small"]
+  - name: "six-fo"
+    tags: ["big"]
+  - name: "slant"
+    tags: ["hot"]
+  - name: "slide"
+    tags: ["art"]
+  - name: "slscript"
+    tags: ["art"]
+  - name: "sm caps"
+    tags: ["small"]
+  - name: "sm isometric1"
+    tags: ["small"]
+  - name: "sm keyboard"
+    tags: ["small", "retro"]
+  - name: "sm poison"
+    tags: ["small", "art"]
+  - name: "sm script"
+    tags: ["small", "art"]
+  - name: "sm shadow"
+    tags: ["small"]
+  - name: "sm slant"
+    tags: ["small"]
+  - name: "sm tengwar"
+    tags: ["small", "art"]
+  - name: "sm"
+    tags: ["small"]
+  - name: "smcaps"
+    tags: ["small"]
+  - name: "smisome1"
+    tags: []
+  - name: "smkeyboard"
+    tags: ["small", "retro"]
+  - name: "smpoison"
+    tags: ["small", "art"]
+  - name: "smscript"
+    tags: ["small", "art"]
+  - name: "smshadow"
+    tags: ["small"]
+  - name: "smslant"
+    tags: ["small"]
+  - name: "smtengwar"
+    tags: ["small", "art"]
+  - name: "soft"
+    tags: ["art"]
+  - name: "speed"
+    tags: ["art"]
+  - name: "spliff"
+    tags: ["art"]
+  - name: "stacey"
+    tags: ["art"]
+  - name: "stampate"
+    tags: ["art"]
+  - name: "stampatello"
+    tags: ["big", "art"]
+  - name: "standard"
+    tags: ["hot"]
+  - name: "starstrips"
+    tags: ["big", "art"]
+  - name: "starwars"
+    tags: ["hot", "big"]
+  - name: "stellar"
+    tags: ["art"]
+  - name: "stencil"
+    tags: ["big", "art"]
+  - name: "stforek"
+    tags: ["art"]
+  - name: "stick_letters"
+    tags: ["small", "art"]
+  - name: "stop"
+    tags: ["retro"]
+  - name: "straight"
+    tags: ["small", "retro"]
+  - name: "stronger_than_all"
+    tags: ["big", "art"]
+  - name: "sub-zero"
+    tags: ["art"]
+  - name: "swampland"
+    tags: ["big", "art"]
+  - name: "swan"
+    tags: ["art"]
+  - name: "sweet"
+    tags: ["art"]
+  - name: "tanja"
+    tags: ["art"]
+  - name: "tengwar"
+    tags: ["art"]
+  - name: "term"
+    tags: ["small", "retro"]
+  - name: "terminus"
+    tags: ["small", "retro"]
+  - name: "terminus_dots"
+    tags: ["small", "retro"]
+  - name: "test1"
+    tags: ["small"]
+  - name: "the_edge"
+    tags: ["big", "art"]
+  - name: "thick"
+    tags: ["big"]
+  - name: "thin"
+    tags: ["small"]
+  - name: "this"
+    tags: ["art", "big"]
+  - name: "thorned"
+    tags: ["art"]
+  - name: "threepoint"
+    tags: ["small"]
+  - name: "ticks"
+  - name: "ticksslant"
+  - name: "tiles"
+    tags: ["retro"]
+  - name: "tinker-toy"
+    tags: ["big", "art"]
+  - name: "tombstone"
+    tags: ["art"]
+  - name: "train"
+    tags: ["big"]
+  - name: "trek"
+    tags: ["hot", "big"]
+  - name: "tsalagi"
+    tags: ["art"]
+  - name: "tubular"
+    tags: ["big", "art"]
+  - name: "twisted"
+    tags: ["art"]
+  - name: "twopoint"
+    tags: ["small"]
+  - name: "ublk"
+    tags: ["small", "retro"]
+  - name: "univers"
+    tags: ["big"]
+  - name: "usaflag"
+    tags: ["big", "art"]
+  - name: "varsity"
+    tags: ["art"]
+  - name: "wavy"
+    tags: ["art"]
+  - name: "weird"
+    tags: ["art"]
+  - name: "wetletter"
+    tags: ["art"]
+  - name: "whimsy"
+    tags: ["art"]
+  - name: "wow"
+    tags: ["big", "art"]

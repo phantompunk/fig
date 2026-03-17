@@ -30,7 +30,7 @@ func (m model) helpBox() string {
 	if m.focusState == focusFilter {
 		controls = "enter:confirm  esc:clear"
 	} else {
-		controls = "↑/k:up ↓/j:down gg:start G:end ^U:pgup ^D:pgdn /:filter i:text a:align c:copy q:quit"
+		controls = "↑/k:up ↓/j:down gg:start G:end ^U:pgup ^D:pgdn tab:tag /:filter i:text a:align c:copy q:quit"
 	}
 	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.filteredFonts))
 	spacingWidth := max(m.width-gloss.Width(controls)-gloss.Width(list)-2, 0)
@@ -64,6 +64,10 @@ func (m model) statusView() string {
 	var status string
 	if m.copyMsg != "" {
 		status = " " + m.copyMsg
+	} else if m.filterQuery != "" && m.activeTag != "all" {
+		status = fmt.Sprintf(" [%s]  Filter: %q — %d/%d fonts", m.activeTag, m.filterQuery, len(m.filteredFonts), len(m.fonts))
+	} else if m.activeTag != "all" {
+		status = fmt.Sprintf(" [%s] — %d/%d fonts", m.activeTag, len(m.filteredFonts), len(m.fonts))
 	} else if m.filterQuery != "" {
 		status = fmt.Sprintf(" Filter: %q — %d/%d fonts", m.filterQuery, len(m.filteredFonts), len(m.fonts))
 	} else if len(m.filteredFonts) == 0 || m.cursor >= len(m.filteredFonts) {
