@@ -77,8 +77,18 @@ func run(cmd *cobra.Command, args []string) error {
 		return tui.Start()
 	}
 
+	if center && right {
+		return fmt.Errorf("--center and --right are mutually exclusive")
+	}
+	align := render.AlignLeft
+	if center {
+		align = render.AlignCenter
+	} else if right {
+		align = render.AlignRight
+	}
+
 	engine := render.New(font.BundledLoader())
-	out, err := engine.Render(msg, render.RenderOptions{FontName: fontName})
+	out, err := engine.Render(msg, render.RenderOptions{FontName: fontName, Align: align})
 	if err != nil {
 		return err
 	}

@@ -9,18 +9,21 @@ type FilterFunc func(*Canvas) *Canvas
 type RenderOptions struct {
 	FontName   string
 	FilterFunc []FilterFunc
+	Align      Alignment // AlignLeft (default), AlignCenter, or AlignRight
+	Width      int       // terminal width override; 0 means detect at render time
 }
 
 type Engine struct {
-	registry *font.FontRegistry
+	registry  *font.FontRegistry
+	TermWidth func() int // injectable for tests; defaults to terminalWidth
 }
 
 func New(loaders ...font.FontLoader) *Engine {
-	return &Engine{registry: font.NewRegistry(loaders...)}
+	return &Engine{registry: font.NewRegistry(loaders...), TermWidth: terminalWidth}
 }
 
 func NewEngine() *Engine {
-	return &Engine{registry: font.NewRegistry()}
+	return &Engine{registry: font.NewRegistry(), TermWidth: terminalWidth}
 }
 
 func (e *Engine) Render(text string, opts RenderOptions) (string, error) {
@@ -54,7 +57,15 @@ func (e *Engine) Render(text string, opts RenderOptions) (string, error) {
 		}
 	}
 
-	return canvas.String(hb, cursor), nil
+	out := canvas.String(hb, cursor)
+	if opts.Align != AlignLeft {
+		w := opts.Width
+		if w == 0 {
+			w = e.TermWidth()
+		}
+		out = alignOutput(out, opts.Align, w)
+	}
+	return out, nil
 }
 
 // glyphWidth returns the natural width of a glyph (max row length, including
