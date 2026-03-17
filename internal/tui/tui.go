@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	gloss "github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	gloss "charm.land/lipgloss/v2"
 	"github.com/phantompunk/fig/internal/font"
 	"github.com/phantompunk/fig/internal/render"
 )
@@ -53,13 +53,15 @@ func (m model) Init() tea.Cmd {
 	}
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
 	inputBox := m.textInputBox()
 	status := m.statusView()
 	helpBox := m.helpBox()
 
 	if !m.ready {
-		return "loading fonts"
+		v := tea.NewView("loading fonts")
+		v.AltScreen = true
+		return v
 	}
 
 	previewContent := m.renderPreviews()
@@ -85,14 +87,17 @@ func (m model) View() string {
 		Height(contentHeight).
 		Render(previewContent)
 
-	return gloss.JoinVertical(gloss.Left, inputBox, mainContent, footer)
+	content := gloss.JoinVertical(gloss.Left, inputBox, mainContent, footer)
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
@@ -297,7 +302,7 @@ func (m *model) toggleFocusState() {
 func Start() error {
 	m := newModel()
 
-	if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if _, err := tea.NewProgram(m).Run(); err != nil {
 		return fmt.Errorf("running tui: %w", err)
 	}
 

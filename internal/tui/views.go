@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	gloss "github.com/charmbracelet/lipgloss"
+	gloss "charm.land/lipgloss/v2"
 )
 
 func (m model) textInputBox() string {
