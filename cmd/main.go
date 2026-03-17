@@ -93,6 +93,8 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Print(out)
+
+	// Legacy render
 	// font, err := font.LoadFont(fontName)
 	// if err != nil {
 	// 	return err

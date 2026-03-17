@@ -35,8 +35,9 @@ func (f *Font) GlyphRunes(char rune) [][]rune {
 	g := f.getGlyph(char)
 	rows := make([][]rune, len(g.lines))
 	for i, line := range g.lines {
-		row := make([]rune, len(line))
-		for j, ch := range line {
+		runes := []rune(line)
+		row := make([]rune, len(runes))
+		for j, ch := range runes {
 			if ch == ' ' {
 				row[j] = 0
 			} else {
