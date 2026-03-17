@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	gloss "charm.land/lipgloss/v2"
+	"github.com/atotto/clipboard"
 	"github.com/phantompunk/fig/internal/font"
 	"github.com/phantompunk/fig/internal/render"
 )
@@ -16,6 +17,7 @@ type focusState int
 const (
 	focusFontList focusState = iota
 	focusTextInput
+	focusFilter
 )
 
 type item struct {
@@ -25,25 +27,32 @@ type item struct {
 }
 
 type model struct {
-	engine     *render.Engine
-	textInput  textinput.Model
-	fonts      []item
-	text       string
-	cursor     int
-	width      int
-	height     int
-	viewHeight int
-	ready      bool
-	offset     int
-	focusState focusState
-	align      render.Alignment
+	engine        *render.Engine
+	textInput     textinput.Model
+	filterInput   textinput.Model
+	fonts         []item
+	filteredFonts []item
+	filterQuery   string
+	text          string
+	cursor        int
+	width         int
+	height        int
+	viewHeight    int
+	ready         bool
+	offset        int
+	focusState    focusState
+	align         render.Alignment
+	copyMsg       string
 }
 
 func newModel() *model {
 	textInput := textinput.New()
+	filterInput := textinput.New()
+	filterInput.Placeholder = "filter fonts..."
 	return &model{
-		textInput: textInput,
-		engine:    render.New(font.BundledLoader()),
+		textInput:   textInput,
+		filterInput: filterInput,
+		engine:      render.New(font.BundledLoader()),
 	}
 }
 
@@ -76,18 +85,29 @@ func (m model) View() tea.View {
 	footer := gloss.JoinVertical(gloss.Left, status, helpBox)
 
 	const (
-		inputBoxHeight = 3
-		statusHeight   = 1
-		helpBoxHeight  = 1
+		inputBoxHeight  = 3
+		filterBoxHeight = 3
+		statusHeight    = 1
+		helpBoxHeight   = 1
 	)
 	footerHeight := statusHeight + helpBoxHeight
 	contentHeight := m.height - inputBoxHeight - footerHeight
+	if m.focusState == focusFilter {
+		contentHeight -= filterBoxHeight
+	}
 
 	mainContent := gloss.NewStyle().
 		Height(contentHeight).
 		Render(previewContent)
 
-	content := gloss.JoinVertical(gloss.Left, inputBox, mainContent, footer)
+	var parts []string
+	parts = append(parts, inputBox)
+	if m.focusState == focusFilter {
+		parts = append(parts, m.filterBox())
+	}
+	parts = append(parts, mainContent, footer)
+	content := gloss.JoinVertical(gloss.Left, parts...)
+
 	v := tea.NewView(content)
 	v.AltScreen = true
 	return v
@@ -98,8 +118,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		m.copyMsg = ""
 		switch msg.String() {
-		case "q", "ctrl+c", "esc":
+		case "ctrl+c":
+			return m, tea.Quit
+
+		case "q":
+			if m.focusState != focusFilter && m.focusState != focusTextInput {
+				return m, tea.Quit
+			}
+
+		case "esc":
+			if m.focusState == focusFilter {
+				m.focusState = focusFontList
+				m.filterInput.Blur()
+				m.filterQuery = ""
+				m.applyFilter()
+				return m, nil
+			}
 			return m, tea.Quit
 
 		case "k", "up":
@@ -109,18 +145,53 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "j", "down":
-			if m.cursor < len(m.fonts)-1 && m.focusState == focusFontList {
+			if m.cursor < len(m.filteredFonts)-1 && m.focusState == focusFontList {
 				m.cursor++
 				m.ensureSelectedVisible()
 			}
 
 		case "g":
-			m.cursor = 0
-			m.ensureSelectedVisible()
+			if m.focusState == focusFontList {
+				m.cursor = 0
+				m.ensureSelectedVisible()
+			}
 
 		case "G":
-			m.cursor = len(m.fonts) - 1
-			m.ensureSelectedVisible()
+			if m.focusState == focusFontList {
+				m.cursor = len(m.filteredFonts) - 1
+				m.ensureSelectedVisible()
+			}
+
+		case "ctrl+u":
+			if m.focusState == focusFontList {
+				m.cursor = m.pageMove(-m.viewHeight / 2)
+				m.ensureSelectedVisible()
+			}
+
+		case "ctrl+d":
+			if m.focusState == focusFontList {
+				m.cursor = m.pageMove(m.viewHeight / 2)
+				m.ensureSelectedVisible()
+			}
+
+		case "/":
+			if m.focusState == focusFontList {
+				m.focusState = focusFilter
+				m.filterInput.SetValue("")
+				m.filterQuery = ""
+				m.filterInput.Focus()
+				return m, nil
+			}
+
+		case "c":
+			if m.focusState == focusFontList && len(m.filteredFonts) > 0 {
+				rendered := m.renderedOutput()
+				if err := clipboard.WriteAll(rendered); err != nil {
+					m.copyMsg = "copy failed"
+				} else {
+					m.copyMsg = "copied!"
+				}
+			}
 
 		case "a":
 			if m.focusState == focusFontList {
@@ -136,6 +207,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.focusState == focusTextInput {
 				m.toggleFocusState()
+			} else if m.focusState == focusFilter {
+				m.focusState = focusFontList
+				m.filterInput.Blur()
+				return m, nil
 			}
 		}
 
@@ -143,6 +218,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fonts = msg.fonts
 		m.ready = true
 		m.cursor = 0
+		m.applyFilter()
 		m.ensureSelectedVisible()
 		return m, nil
 
@@ -162,51 +238,81 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.textInput, cmd = m.textInput.Update(msg); cmd != nil {
-		m.text = m.textInput.Value()
-		return m, cmd
+	if m.focusState == focusTextInput {
+		if m.textInput, cmd = m.textInput.Update(msg); cmd != nil {
+			m.text = m.textInput.Value()
+			return m, cmd
+		}
+	} else if m.focusState == focusFilter {
+		if m.filterInput, cmd = m.filterInput.Update(msg); cmd != nil {
+			newQuery := m.filterInput.Value()
+			if newQuery != m.filterQuery {
+				m.filterQuery = newQuery
+				m.applyFilter()
+				m.cursor = 0
+				m.ensureSelectedVisible()
+			}
+			return m, cmd
+		}
 	}
+
 	return m, nil
 }
 
+func (m *model) applyFilter() {
+	if m.filterQuery == "" {
+		m.filteredFonts = m.fonts
+		return
+	}
+	q := strings.ToLower(m.filterQuery)
+	result := make([]item, 0)
+	for _, f := range m.fonts {
+		if strings.Contains(strings.ToLower(f.name), q) {
+			result = append(result, f)
+		}
+	}
+	m.filteredFonts = result
+}
+
 func (m *model) visibleRange() (start, startOffset, end int) {
-	if len(m.fonts) == 0 {
+	if len(m.filteredFonts) == 0 {
 		return 0, 0, 0
 	}
 
 	off := m.offset
 	start = 0
 
-	for start < len(m.fonts) && off >= m.fonts[start].height {
-		off -= m.fonts[start].height
+	for start < len(m.filteredFonts) && off >= m.filteredFonts[start].height {
+		off -= m.filteredFonts[start].height
 		start++
 	}
 
-	if start >= len(m.fonts) {
-		return len(m.fonts) - 1, 0, len(m.fonts) - 1
+	if start >= len(m.filteredFonts) {
+		return len(m.filteredFonts) - 1, 0, len(m.filteredFonts) - 1
 	}
 
 	startOffset = off
 	remaining := m.viewHeight
-	remaining -= (m.fonts[start].height - startOffset)
+	remaining -= (m.filteredFonts[start].height - startOffset)
 
 	end = start
 
-	for remaining > 0 && end+1 < len(m.fonts) {
+	for remaining > 0 && end+1 < len(m.filteredFonts) {
 		end++
-		remaining -= m.fonts[end].height
+		remaining -= m.filteredFonts[end].height
 	}
 
 	return
 }
 
 func (m *model) ensureSelectedVisible() {
-	if len(m.fonts) == 0 {
+	if len(m.filteredFonts) == 0 {
+		m.offset = 0
 		return
 	}
 
-	if m.cursor >= len(m.fonts) {
-		m.cursor = len(m.fonts) - 1
+	if m.cursor >= len(m.filteredFonts) {
+		m.cursor = len(m.filteredFonts) - 1
 	}
 
 	if m.cursor < 0 {
@@ -215,7 +321,7 @@ func (m *model) ensureSelectedVisible() {
 
 	heightUpToCursor := 0
 	for i := 0; i <= m.cursor; i++ {
-		heightUpToCursor += m.fonts[i].height
+		heightUpToCursor += m.filteredFonts[i].height
 	}
 
 	if heightUpToCursor <= m.viewHeight {
@@ -233,6 +339,30 @@ func (m *model) ensureSelectedVisible() {
 	if m.offset < 0 {
 		m.offset = 0
 	}
+}
+
+// pageMove advances the cursor by delta lines worth of font entries (negative = up).
+// It walks through fonts accumulating heights until the target line count is reached.
+func (m *model) pageMove(delta int) int {
+	if len(m.filteredFonts) == 0 {
+		return 0
+	}
+	if delta < 0 {
+		remaining := -delta
+		c := m.cursor
+		for c > 0 && remaining > 0 {
+			c--
+			remaining -= m.filteredFonts[c].height
+		}
+		return c
+	}
+	remaining := delta
+	c := m.cursor
+	for c < len(m.filteredFonts)-1 && remaining > 0 {
+		remaining -= m.filteredFonts[c].height
+		c++
+	}
+	return c
 }
 
 type fontsLoadedMsg struct {
@@ -262,11 +392,11 @@ func loadFontsWithEngine(engine *render.Engine) tea.Msg {
 }
 
 func (m model) PreviewFont(index int) string {
-	if index < 0 || index >= len(m.fonts) {
+	if index < 0 || index >= len(m.filteredFonts) {
 		return "Invalid font index"
 	}
 
-	name := m.fonts[index].name
+	name := m.filteredFonts[index].name
 	opts := render.RenderOptions{
 		FontName: name,
 		Align:    m.align,
@@ -286,6 +416,23 @@ func (m model) PreviewFont(index int) string {
 	fname := gloss.NewStyle().Italic(true)
 	output := gloss.NewStyle().PaddingLeft(4)
 	return fmt.Sprintf("%s\n%s", fname.Render(name), output.Render(rendered))
+}
+
+// renderedOutput returns the plain rendered text for the currently selected font.
+func (m model) renderedOutput() string {
+	if len(m.filteredFonts) == 0 || m.cursor >= len(m.filteredFonts) {
+		return ""
+	}
+	name := m.filteredFonts[m.cursor].name
+	text := m.text
+	if text == "" {
+		text = name
+	}
+	out, err := m.engine.Render(text, render.RenderOptions{FontName: name})
+	if err != nil {
+		return ""
+	}
+	return out
 }
 
 func (m *model) toggleFocusState() {
@@ -310,6 +457,10 @@ func Start() error {
 }
 
 func (m model) renderPreviews() string {
+	if len(m.filteredFonts) == 0 {
+		return gloss.NewStyle().Foreground(gloss.Color("#626784")).Render("  no fonts match")
+	}
+
 	var b strings.Builder
 
 	if m.ready {

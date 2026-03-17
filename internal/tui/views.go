@@ -18,13 +18,22 @@ func (m model) textInputBox() string {
 	return m.boxStyle().Render(b.String())
 }
 
+func (m model) filterBox() string {
+	var b strings.Builder
+	b.WriteString("Filter /")
+	b.WriteString(m.filterInput.View())
+	return m.selectedBoxStyle().Render(b.String())
+}
+
 func (m model) helpBox() string {
-	controls := "↑/k:up ↓/j:down i:text a:align q:quit"
-	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.fonts))
-	spacingWidth := m.width - gloss.Width(controls) - gloss.Width(list) - 2
-	if spacingWidth < 0 {
-		spacingWidth = 0
+	var controls string
+	if m.focusState == focusFilter {
+		controls = "enter:confirm  esc:clear"
+	} else {
+		controls = "↑/k:up ↓/j:down gg:start G:end ^U:pgup ^D:pgdn /:filter i:text a:align c:copy q:quit"
 	}
+	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.filteredFonts))
+	spacingWidth := max(m.width-gloss.Width(controls)-gloss.Width(list)-2, 0)
 	spacing := strings.Repeat(" ", spacingWidth)
 	content := gloss.JoinHorizontal(
 		gloss.Top,
@@ -53,10 +62,14 @@ func (m model) boxStyle() gloss.Style {
 
 func (m model) statusView() string {
 	var status string
-	if len(m.fonts) == 0 || m.cursor >= len(m.fonts) {
-		status = fmt.Sprintf(" Count %d, selected: %d", len(m.fonts), m.cursor)
+	if m.copyMsg != "" {
+		status = " " + m.copyMsg
+	} else if m.filterQuery != "" {
+		status = fmt.Sprintf(" Filter: %q — %d/%d fonts", m.filterQuery, len(m.filteredFonts), len(m.fonts))
+	} else if len(m.filteredFonts) == 0 || m.cursor >= len(m.filteredFonts) {
+		status = fmt.Sprintf(" Count %d, selected: %d", len(m.filteredFonts), m.cursor)
 	} else {
-		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.fonts), m.cursor, m.fonts[m.cursor].name, m.fonts[m.cursor].height, m.viewHeight)
+		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.filteredFonts), m.cursor, m.filteredFonts[m.cursor].name, m.filteredFonts[m.cursor].height, m.viewHeight)
 	}
 	return gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(status)
 }
