@@ -1,4 +1,4 @@
-package fig
+package font
 
 import (
 	"testing"
@@ -354,7 +354,7 @@ func TestIsSmushable(t *testing.T) {
 // }
 
 func NewSmushRenderer(mode SmushRule) *Renderer {
-	font := &FigFont{
+	font := &Font{
 		metadata: Metadata{
 			hardBlank: '$',
 		},
@@ -375,7 +375,7 @@ func TestRenderer_render(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := New(Must(Font(tt.fontName)))
+			r := New(Must(LoadFont(tt.fontName)))
 			got := r.render(tt.text)
 			assert.Equal(t, tt.wantRows, len(got))
 		})

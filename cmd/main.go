@@ -8,8 +8,9 @@ import (
 	"strings"
 	"syscall"
 
-	fig "github.com/phantompunk/fig/internal/font"
+	"github.com/phantompunk/fig/internal/font"
 	"github.com/phantompunk/fig/internal/input"
+	"github.com/phantompunk/fig/internal/render"
 	"github.com/phantompunk/fig/internal/tui"
 	"github.com/phantompunk/fig/internal/vcs"
 	"github.com/spf13/cobra"
@@ -61,7 +62,7 @@ func buildCmd() *cobra.Command {
 
 func run(cmd *cobra.Command, args []string) error {
 	if listFonts {
-		fonts := fig.ListFonts()
+		fonts := font.ListFonts()
 		fmt.Println("Supported fonts:", strings.Join(fonts, ", "))
 		return nil
 	}
@@ -76,11 +77,17 @@ func run(cmd *cobra.Command, args []string) error {
 		return tui.Start()
 	}
 
-	font, err := fig.Font(fontName)
+	engine := render.New(font.BundledLoader())
+	out, err := engine.Render(msg, render.RenderOptions{FontName: fontName})
 	if err != nil {
 		return err
 	}
-
-	fmt.Println(font.Render(msg))
+	fmt.Print(out)
+	// font, err := font.LoadFont(fontName)
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// fmt.Println(font.Render(msg))
 	return nil
 }

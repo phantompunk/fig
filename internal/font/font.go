@@ -1,19 +1,19 @@
-package fig
+package font
 
-type FigFont struct {
+type Font struct {
 	name     string
 	metadata Metadata
 	glyphs   GlyphDict
 	rules    []SmushRule
 }
 
-// Font loads a FIGlet font by name.
-func Font(name string) (*FigFont, error) {
+// LoadFont loads a FIGlet font by name.
+func LoadFont(name string) (*Font, error) {
 	return loadFont(name)
 }
 
 // Must is a helper method that panics if there is an error loading the font.
-func Must(t *FigFont, err error) *FigFont {
+func Must(t *Font, err error) *Font {
 	if err != nil {
 		panic(err)
 	}
@@ -21,25 +21,49 @@ func Must(t *FigFont, err error) *FigFont {
 }
 
 // Name returns the name of the font.
-func (f *FigFont) Name() string { return f.name }
-func (f *FigFont) Height() int  { return f.metadata.height }
+func (f *Font) Name() string     { return f.name }
+func (f *Font) Height() int      { return f.metadata.height }
+func (f *Font) Hardblank() rune  { return f.metadata.hardBlank }
+func (f *Font) MaxLength() int   { return f.metadata.maxLength }
+func (f *Font) Rules() []SmushRule { return f.rules }
+func (f *Font) IsFullWidth() bool  { return f.metadata.layoutMode.FullWidth }
 
-func (f *FigFont) Render(text string) string {
+// GlyphRunes returns the glyph for char as a 2D rune slice ready for the
+// canvas. Regular spaces are converted to 0 (transparent); hardblanks and all
+// other characters are kept as-is.
+func (f *Font) GlyphRunes(char rune) [][]rune {
+	g := f.getGlyph(char)
+	rows := make([][]rune, len(g.lines))
+	for i, line := range g.lines {
+		row := make([]rune, len(line))
+		for j, ch := range line {
+			if ch == ' ' {
+				row[j] = 0
+			} else {
+				row[j] = ch
+			}
+		}
+		rows[i] = row
+	}
+	return rows
+}
+
+func (f *Font) Render(text string) string {
 	renderer := New(f)
 	return renderer.Render(text)
 }
 
-func (f *FigFont) Lines(text string) []string {
+func (f *Font) Lines(text string) []string {
 	renderer := New(f)
 	return renderer.Lines(text)
 }
 
-func (f *FigFont) getGlyph(char rune) Glyph {
+func (f *Font) getGlyph(char rune) Glyph {
 	return f.glyphs[char]
 }
 
-func NewFigFont(name string, meta Metadata) *FigFont {
-	return &FigFont{
+func NewFigFont(name string, meta Metadata) *Font {
+	return &Font{
 		name:     name,
 		metadata: meta,
 		glyphs:   make(GlyphDict),

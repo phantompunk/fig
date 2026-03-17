@@ -1,11 +1,11 @@
-package fig
+package font
 
 import (
 	"strings"
 )
 
 type Renderer struct {
-	font *FigFont
+	font *Font
 }
 
 type RenderOptions struct {
@@ -20,7 +20,7 @@ const (
 	JustifyRight
 )
 
-func New(font *FigFont) *Renderer {
+func New(font *Font) *Renderer {
 	return &Renderer{font: font}
 }
 

@@ -1,9 +1,9 @@
-package canvas
+package render
 
 import (
 	"testing"
 
-	"github.com/phantompunk/fig/assert"
+	"github.com/phantompunk/fig/internal/assert"
 	fig "github.com/phantompunk/fig/internal/font"
 )
 
@@ -110,13 +110,14 @@ func TestFindOverlap_noSmushPossible(t *testing.T) {
 }
 
 func TestFindOverlap_fullOverlapClean(t *testing.T) {
+	// No whitespace gap; touching chars (X, X) smush via EqualChars → gap = 0+0+1 = 1.
 	existing := [][]rune{[]rune("XX")}
 	incoming := [][]rune{[]rune("XX")}
 	c := NewCanvas(1, 4)
 	c.Stamp(existing, 0)
 	got := c.FindOverlap(incoming, 2, []fig.SmushRule{fig.EqualCharsRule('$')}, '$')
-	if got != 2 {
-		t.Errorf("want overlap 2, got %d", got)
+	if got != 1 {
+		t.Errorf("want overlap 1, got %d", got)
 	}
 }
 
@@ -158,13 +159,13 @@ func TestStampSmush_noOverwriteOnFailedSmush(t *testing.T) {
 }
 
 func TestString_replacesHardblanksAndZeros(t *testing.T) {
-    c := NewCanvas(2, 4)
-    c.cells[0] = []rune{'A', '$', 0, 'B'}
-    c.cells[1] = []rune{0, 'C', '$', 0}
+	c := NewCanvas(2, 4)
+	c.cells[0] = []rune{'A', '$', 0, 'B'}
+	c.cells[1] = []rune{0, 'C', '$', 0}
 
-    got := c.String('$')
-    want := "A  B\n C \n"
-    if got != want {
-        t.Errorf("got %q, want %q", got, want)
-    }
+	got := c.String('$', 0)
+	want := "A  B\n C  \n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
 }

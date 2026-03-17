@@ -1,9 +1,9 @@
-package canvas
+package render
 
 import (
 	"strings"
 
-	fig "github.com/phantompunk/fig/internal/font"
+	"github.com/phantompunk/fig/internal/font"
 )
 
 type Canvas struct {
@@ -23,16 +23,19 @@ func (c *Canvas) Stamp(glyph [][]rune, xOffset int) {
 	for y, row := range glyph {
 		for x, ch := range row {
 			cx := xOffset + x
+			if cx < 0 {
+				continue
+			}
 			if cx >= len(c.cells[y]) {
 				break
 			}
-			c.cells[y][xOffset+x] = ch
+			c.cells[y][cx] = ch
 		}
 	}
 }
 
-func (c *Canvas) FindOverlap(glyph [][]rune, maxOverlap int, rules []fig.SmushRule, hb rune) int {
-	// Find the rightmost non-zero column across all rows.
+func (c *Canvas) FindOverlap(glyph [][]rune, maxOverlap int, rules []font.SmushRule, hb rune) int {
+	// Find the global right edge of the canvas (max across all rows).
 	rightEdge := 0
 	for _, row := range c.cells {
 		for x := len(row) - 1; x >= 0; x-- {
@@ -45,40 +48,55 @@ func (c *Canvas) FindOverlap(glyph [][]rune, maxOverlap int, rules []fig.SmushRu
 		}
 	}
 
-	for overlap := maxOverlap; overlap >= 1; overlap-- {
-		if overlap > rightEdge {
-			continue
+	// FIGlet gap algorithm: for each row compute the overlap as
+	//   trailing_empty(canvas_row) + leading_empty(glyph_row) [+1 if touching chars smush]
+	// then take the minimum across all rows.
+	overlap := maxOverlap
+	for rowIdx, glyphRow := range glyph {
+		if rowIdx >= c.height {
+			break
 		}
-		canSmush := true
-	rowLoop:
-		for rowIdx, glyphRow := range glyph {
-			if rowIdx >= c.height {
+		canvasRow := c.cells[rowIdx]
+
+		// Rightmost non-zero in this canvas row.
+		canvasRight := 0
+		for x := len(canvasRow) - 1; x >= 0; x-- {
+			if canvasRow[x] != 0 {
+				canvasRight = x + 1
 				break
 			}
-			for i := 0; i < overlap; i++ {
-				canvasX := rightEdge - overlap + i
-				if i >= len(glyphRow) {
-					continue
-				}
-				left := c.cells[rowIdx][canvasX]
-				right := glyphRow[i]
-				if left == 0 || right == 0 {
-					continue
-				}
-				if _, ok := smushCell(left, right, rules, hb); !ok {
-					canSmush = false
-					break rowLoop
-				}
+		}
+
+		// Trailing empty columns relative to the global right edge.
+		trailingEmpty := rightEdge - canvasRight
+
+		// Leftmost non-zero in the glyph row.
+		glyphLeft := len(glyphRow) // sentinel: row is all empty
+		for x, ch := range glyphRow {
+			if ch != 0 {
+				glyphLeft = x
+				break
 			}
 		}
-		if canSmush {
-			return overlap
+
+		gap := trailingEmpty + glyphLeft
+
+		// One extra column of overlap when the touching chars can smush.
+		if canvasRight > 0 && glyphLeft < len(glyphRow) {
+			if _, ok := smushCell(canvasRow[canvasRight-1], glyphRow[glyphLeft], rules, hb); ok {
+				gap++
+			}
+		}
+
+		if gap < overlap {
+			overlap = gap
 		}
 	}
-	return 0
+
+	return overlap
 }
 
-func (c *Canvas) StampSmush(glyph [][]rune, overlap int, rules []fig.SmushRule, hb rune) {
+func (c *Canvas) StampSmush(glyph [][]rune, overlap int, rules []font.SmushRule, hb rune) {
 	// Find the rightmost non-zero column across all rows.
 	rightEdge := 0
 	for _, row := range c.cells {
@@ -147,15 +165,28 @@ func (c *Canvas) StampSmush(glyph [][]rune, overlap int, rules []fig.SmushRule, 
 	}
 }
 
-func (c *Canvas) String(hb rune) string {
-	var sb strings.Builder
+func (c *Canvas) String(hb rune, minWidth int) string {
+	// Find the widest content column across all rows so every row is the same
+	// width, matching figlet's fixed-width output. minWidth sets a floor (used
+	// for full-width fonts where trailing glyph whitespace must be preserved).
+	maxEnd := minWidth
 	for _, row := range c.cells {
-		// Find last non-zero cell to trim trailing empty cells.
 		end := len(row)
 		for end > 0 && row[end-1] == 0 {
 			end--
 		}
-		for _, ch := range row[:end] {
+		if end > maxEnd {
+			maxEnd = end
+		}
+	}
+
+	var sb strings.Builder
+	for _, row := range c.cells {
+		for i := 0; i < maxEnd; i++ {
+			var ch rune
+			if i < len(row) {
+				ch = row[i]
+			}
 			if ch == 0 || ch == hb {
 				sb.WriteRune(' ')
 			} else {
@@ -167,7 +198,7 @@ func (c *Canvas) String(hb rune) string {
 	return sb.String()
 }
 
-func smushCell(l, r rune, rules []fig.SmushRule, hb rune) (rune, bool) {
+func smushCell(l, r rune, rules []font.SmushRule, hb rune) (rune, bool) {
 	if l != hb && r != hb {
 		if r == ' ' {
 			return l, true
@@ -177,11 +208,10 @@ func smushCell(l, r rune, rules []fig.SmushRule, hb rune) (rune, bool) {
 		}
 	}
 
-	for _,rule := range rules {
+	for _, rule := range rules {
 		if result := rule(l, r); result.Ok {
 			return result.Char, true
 		}
 	}
 	return 0, false
 }
-

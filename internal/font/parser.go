@@ -1,0 +1,228 @@
+package font
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+)
+
+func Parse(data []byte, name, source string) (*Font, error) {
+	return parseFont(name, bytes.NewReader(data))
+}
+
+func parseFont(name string, data io.Reader) (*Font, error) {
+	scanner := bufio.NewScanner(data)
+	if !scanner.Scan() {
+		return nil, fmt.Errorf("empty font file")
+	}
+
+	// flf2a$ 6 4 6 -1 4
+	header := scanner.Text()
+	meta, err := parseHeader(header)
+	if err != nil {
+		return nil, err
+	}
+
+	// skipCommentLines
+	for range meta.commentLines {
+		if !scanner.Scan() {
+			return nil, fmt.Errorf("unexpected eof in comments")
+		}
+	}
+
+	font := NewFigFont(name, meta)
+	// parseCharacters
+	for charCode := 32; charCode <= 126; charCode++ {
+		char, err := readCharacter(scanner, meta.height)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read character %d: %w", charCode, err)
+		}
+		font.glyphs[rune(charCode)] = char
+	}
+
+	return font, nil
+}
+
+type headerParser struct {
+	fields []string
+	size   int
+	err    error
+}
+
+func newParser(header string) (*headerParser, error) {
+	if len(header) < 6 {
+		return nil, fmt.Errorf("invalid header: %q", header)
+	}
+
+	if !strings.HasPrefix(header, "flf2a") {
+		return nil, fmt.Errorf("invalid header prefix: %q", header)
+	}
+
+	fields := strings.Fields(header[5:])
+	if len(fields) < 6 {
+		return nil, fmt.Errorf("invalid header format: expected at least 6 fields, got %d", len(fields))
+	}
+
+	return &headerParser{fields: fields, size: len(fields)}, nil
+}
+
+func (p *headerParser) parseInt(i int, name string) int {
+	if p.err != nil {
+		return 0
+	}
+
+	if i >= len(p.fields) {
+		p.err = fmt.Errorf("missing field: %s", name)
+		return 0
+	}
+
+	v, err := strconv.Atoi(p.fields[i])
+	if err != nil {
+		p.err = fmt.Errorf("invalid field %s: %v", name, err)
+		return 0
+	}
+
+	return v
+}
+
+const (
+	BitEqualChar       = 1 << 0  // 1
+	BitUnderscore      = 1 << 1  // 2
+	BitHierarchy       = 1 << 2  // 4
+	BitOppositePair    = 1 << 3  // 8
+	BitBigX            = 1 << 4  // 16
+	BitHardblank       = 1 << 5  // 32
+	BitKern            = 1 << 6  // 64
+	BitHSmush          = 1 << 7  // 128
+	BitVEqualChar      = 1 << 8  // 256
+	BitVUnderscore     = 1 << 9  // 512
+	BitVHierarchy      = 1 << 10 // 1024
+	BitHLine           = 1 << 11 // 2048
+	BitVline           = 1 << 12 // 4096
+	BitVKern           = 1 << 13 // 8192
+	BitVSmush          = 1 << 14 // 16384
+	BitLayoutKerning   = 1 << 0  // 1
+	BitLayoutUniversal = 1 << 1  // 2
+	BitLayoutVKerning  = 1 << 13 // 8192
+	BitLayoutVSmushing = 1 << 14 // 16384
+)
+
+func parseSmushMode(mask int) SmushMode {
+	if mask < 0 {
+		return SmushMode{Enabled: false}
+	}
+
+	return SmushMode{
+		// Enabled is true if the bitmask is greater than 0
+		Enabled: mask > 0,
+
+		// Horizontal Smushing Bits
+		EqualChar:    mask&BitEqualChar != 0,
+		Underscore:   mask&BitUnderscore != 0,
+		Hierarchy:    mask&BitHierarchy != 0,
+		OppositePair: mask&BitOppositePair != 0,
+		BigX:         mask&BitBigX != 0,
+		Hardblank:    mask&BitHardblank != 0,
+
+		// Vertical Smushing Bits
+		VEqualChar:  mask&BitVEqualChar != 0,
+		VUnderscore: mask&BitVUnderscore != 0,
+		VHierarchy:  mask&BitVHierarchy != 0,
+		HLine:       mask&BitHLine != 0,
+		Vline:       mask&BitVline != 0,
+	}
+}
+
+func parseLayoutMode(mask int) LayoutMode {
+	// Old FLF layout semantics: negative = full width, zero = kerning,
+	// positive = smushing (rules are in SmushMode; check vertical bits here).
+	if mask < 0 {
+		return LayoutMode{FullWidth: true}
+	}
+	if mask == 0 {
+		return LayoutMode{Kerning: true}
+	}
+	return LayoutMode{
+		Smushing:  true,
+		VKerning:  mask&BitLayoutVKerning != 0,
+		VSmushing: mask&BitLayoutVSmushing != 0,
+	}
+}
+
+func parseHeader(header string) (Metadata, error) {
+	meta := Metadata{}
+
+	parser, err := newParser(header)
+	if err != nil {
+		return Metadata{}, err
+	}
+
+	meta.hardBlank = rune(header[5])
+	meta.height = parser.parseInt(1, "height")
+	meta.baseline = parser.parseInt(2, "baseline")
+	meta.maxLength = parser.parseInt(3, "max_length")
+	meta.oldLayout = parser.parseInt(4, "old_layout")
+	meta.commentLines = parser.parseInt(5, "comment_lines")
+
+	if parser.size > 6 {
+		meta.printDirection = parser.parseInt(6, "print_direction")
+	}
+
+	if parser.size > 7 {
+		meta.fullLayout = parser.parseInt(7, "full_layout")
+	} else {
+		meta.fullLayout = meta.oldLayout
+	}
+
+	if parser.size > 8 {
+		meta.codeTag = parser.parseInt(8, "code_tag")
+	}
+
+	meta.layoutMode = parseLayoutMode(meta.oldLayout)
+	meta.smushMode = parseSmushMode(meta.fullLayout)
+	const horizontalRuleBits = BitEqualChar | BitUnderscore | BitHierarchy | BitOppositePair | BitBigX | BitHardblank
+	if parser.size > 7 {
+		meta.smushMode.Enabled = meta.fullLayout&BitHSmush != 0
+		meta.layoutMode.Smushing = meta.fullLayout&BitHSmush != 0
+		meta.layoutMode.Kerning = meta.fullLayout&BitKern != 0 && meta.fullLayout&BitHSmush == 0
+		meta.layoutMode.FullWidth = meta.fullLayout&BitKern == 0 && meta.fullLayout&BitHSmush == 0
+		meta.layoutMode.Universal = meta.fullLayout&BitHSmush != 0 && meta.fullLayout&horizontalRuleBits == 0
+	} else {
+		meta.smushMode.Enabled = meta.oldLayout > 0
+	}
+	return meta, parser.err
+}
+
+func readCharacter(scanner *bufio.Scanner, height int) (Glyph, error) {
+	lines := make([]string, height)
+	width := 0
+
+	for i := range height {
+		if !scanner.Scan() {
+			return Glyph{}, fmt.Errorf("unexpected end of file while reading characters")
+		}
+
+		line := scanner.Text()
+
+		trim := 1
+		if i == height-1 {
+			trim = 2
+		}
+
+		if len(line) < trim {
+			return Glyph{}, fmt.Errorf("glyph line is too short")
+		}
+
+		line = line[:len(line)-trim]
+		width = max(width, len(line))
+		lines[i] = line
+	}
+
+	return Glyph{
+		lines: lines,
+		width: width,
+	}, nil
+}
