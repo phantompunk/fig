@@ -89,3 +89,86 @@ func TestEngine_Render_cachesFont(t *testing.T) {
 	// The registry should have loaded the font only once; we can't inspect call
 	// count here, but we verify no error across repeated calls.
 }
+
+func TestEngine_Render_cacheHit(t *testing.T) {
+	e := newEngineWithStub(map[string][]byte{"mini": minimalEngineFLF()})
+	opts := RenderOptions{FontName: "mini"}
+
+	first, err := e.Render("hi", opts)
+	if err != nil {
+		t.Fatalf("first render: %v", err)
+	}
+	if e.CacheLen() != 1 {
+		t.Fatalf("expected cache length 1 after first render, got %d", e.CacheLen())
+	}
+
+	second, err := e.Render("hi", opts)
+	if err != nil {
+		t.Fatalf("second render: %v", err)
+	}
+	if e.CacheLen() != 1 {
+		t.Errorf("expected cache length still 1 after cache hit, got %d", e.CacheLen())
+	}
+	if first != second {
+		t.Errorf("cache hit returned different result: %q != %q", first, second)
+	}
+}
+
+func TestEngine_Render_cacheMiss_distinctFont(t *testing.T) {
+	e := newEngineWithStub(map[string][]byte{
+		"a": minimalEngineFLF(),
+		"b": minimalEngineFLF(),
+	})
+
+	if _, err := e.Render("hi", RenderOptions{FontName: "a"}); err != nil {
+		t.Fatalf("render a: %v", err)
+	}
+	if _, err := e.Render("hi", RenderOptions{FontName: "b"}); err != nil {
+		t.Fatalf("render b: %v", err)
+	}
+	if e.CacheLen() != 2 {
+		t.Errorf("expected 2 cache entries for two distinct fonts, got %d", e.CacheLen())
+	}
+}
+
+func TestEngine_Render_cacheBypass_withFilter(t *testing.T) {
+	e := newEngineWithStub(map[string][]byte{"mini": minimalEngineFLF()})
+	opts := RenderOptions{
+		FontName:   "mini",
+		FilterFunc: []FilterFunc{func(c *Canvas) *Canvas { return c }},
+	}
+
+	for range 3 {
+		if _, err := e.Render("hi", opts); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+	}
+	if e.CacheLen() != 0 {
+		t.Errorf("cache should stay empty when FilterFunc is set, got %d entries", e.CacheLen())
+	}
+}
+
+func TestEngine_Render_width0_resolvedPerCall(t *testing.T) {
+	e := newEngineWithStub(map[string][]byte{"mini": minimalEngineFLF()})
+
+	callCount := 0
+	widths := []int{80, 120}
+	e.TermWidth = func() int {
+		w := widths[callCount%len(widths)]
+		callCount++
+		return w
+	}
+
+	opts := RenderOptions{FontName: "mini", Align: AlignCenter} // Width=0 → resolved via TermWidth
+	if _, err := e.Render("hi", opts); err != nil {
+		t.Fatalf("first render: %v", err)
+	}
+	if _, err := e.Render("hi", opts); err != nil {
+		t.Fatalf("second render: %v", err)
+	}
+
+	// Two renders with different resolved widths → two distinct cache entries.
+	if e.CacheLen() != 2 {
+		t.Errorf("expected 2 cache entries for two distinct resolved widths, got %d", e.CacheLen())
+	}
+}
