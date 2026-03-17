@@ -7,7 +7,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	gloss "github.com/charmbracelet/lipgloss"
-	fig "github.com/phantompunk/fig/internal/font"
+	"github.com/phantompunk/fig/internal/font"
+	"github.com/phantompunk/fig/internal/render"
 )
 
 type focusState int
@@ -19,12 +20,12 @@ const (
 
 type item struct {
 	name   string
-	font   *fig.FigFont
 	index  int
 	height int
 }
 
 type model struct {
+	engine     *render.Engine
 	textInput  textinput.Model
 	fonts      []item
 	text       string
@@ -35,14 +36,22 @@ type model struct {
 	ready      bool
 	offset     int
 	focusState focusState
+	align      render.Alignment
 }
 
 func newModel() *model {
 	textInput := textinput.New()
-	return &model{textInput: textInput}
+	return &model{
+		textInput: textInput,
+		engine:    render.New(font.BundledLoader()),
+	}
 }
 
-func (m model) Init() tea.Cmd { return loadFonts }
+func (m model) Init() tea.Cmd {
+	return func() tea.Msg {
+		return loadFontsWithEngine(m.engine)
+	}
+}
 
 func (m model) View() string {
 	inputBox := m.textInputBox()
@@ -56,17 +65,14 @@ func (m model) View() string {
 	previewContent := m.renderPreviews()
 
 	// Limit preview to viewHeight lines to ensure we don't overflow
-	// This is a safety measure in addition to the height constraint
 	lines := strings.Split(previewContent, "\n")
 	if len(lines) > m.viewHeight {
 		lines = lines[:m.viewHeight]
 		previewContent = strings.Join(lines, "\n")
 	}
 
-	// Combine status and help box at the bottom
 	footer := gloss.JoinVertical(gloss.Left, status, helpBox)
 
-	// Use height constraint to push footer to the bottom
 	const (
 		inputBoxHeight = 3
 		statusHeight   = 1
@@ -75,7 +81,6 @@ func (m model) View() string {
 	footerHeight := statusHeight + helpBoxHeight
 	contentHeight := m.height - inputBoxHeight - footerHeight
 
-	// Create main content area with height constraint to push footer down
 	mainContent := gloss.NewStyle().
 		Height(contentHeight).
 		Render(previewContent)
@@ -105,12 +110,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "g":
-			m.cursor=0
+			m.cursor = 0
 			m.ensureSelectedVisible()
 
 		case "G":
-			m.cursor=len(m.fonts)-1
+			m.cursor = len(m.fonts) - 1
 			m.ensureSelectedVisible()
+
+		case "a":
+			if m.focusState == focusFontList {
+				m.align = (m.align + 1) % 3
+			}
 
 		case "i":
 			if m.focusState == focusFontList {
@@ -123,7 +133,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.toggleFocusState()
 			}
 		}
-
 
 	case fontsLoadedMsg:
 		m.fonts = msg.fonts
@@ -199,25 +208,20 @@ func (m *model) ensureSelectedVisible() {
 		m.cursor = 0
 	}
 
-	// Calculate the total height from the start up to and including the cursor
 	heightUpToCursor := 0
 	for i := 0; i <= m.cursor; i++ {
 		heightUpToCursor += m.fonts[i].height
 	}
 
-	// If all items up to cursor fit in the view, start from the top
 	if heightUpToCursor <= m.viewHeight {
 		m.offset = 0
 		return
 	}
 
-	// Otherwise, scroll so the cursor item is fully visible within viewHeight
-	// Add safety margin to account for rendering variations
-	// Position offset so cursor item is well within the view bounds
-	safeMargin := 3 // Extra lines to account for box styling and padding variations
+	safeMargin := 3
 	safeViewHeight := m.viewHeight - safeMargin
 	if safeViewHeight < 5 {
-		safeViewHeight = 5 // Ensure minimum view height
+		safeViewHeight = 5
 	}
 
 	m.offset = heightUpToCursor - safeViewHeight
@@ -230,21 +234,22 @@ type fontsLoadedMsg struct {
 	fonts []item
 }
 
-func loadFonts() tea.Msg {
-	fontNames := fig.ListFonts()
-	items := make([]item, 0, len(fontNames))
+func loadFontsWithEngine(engine *render.Engine) tea.Msg {
+	fontNames, err := engine.ListFonts()
+	if err != nil {
+		return fontsLoadedMsg{fonts: nil}
+	}
 
+	items := make([]item, 0, len(fontNames))
 	for i, name := range fontNames {
-		font, err := fig.Font(name)
+		h, err := engine.FontHeight(name)
 		if err != nil {
 			continue
 		}
-
 		items = append(items, item{
 			name:   name,
-			font:   font,
 			index:  i,
-			height: font.Height() + 3,
+			height: h + 3,
 		})
 	}
 
@@ -255,13 +260,27 @@ func (m model) PreviewFont(index int) string {
 	if index < 0 || index >= len(m.fonts) {
 		return "Invalid font index"
 	}
-	tmpl := "%s\n%s"
+
+	name := m.fonts[index].name
+	opts := render.RenderOptions{
+		FontName: name,
+		Align:    m.align,
+		Width:    m.width,
+	}
+
+	text := m.text
+	if text == "" {
+		text = name
+	}
+
+	rendered, err := m.engine.Render(text, opts)
+	if err != nil {
+		rendered = fmt.Sprintf("[render error: %v]", err)
+	}
+
 	fname := gloss.NewStyle().Italic(true)
 	output := gloss.NewStyle().PaddingLeft(4)
-	if m.text == "" {
-		return fmt.Sprintf(tmpl, fname.Render(m.fonts[index].font.Name()), output.Render(m.fonts[index].font.Render(m.fonts[index].font.Name())))
-	}
-	return fmt.Sprintf(tmpl, fname.Render(m.fonts[index].font.Name()), output.Render(m.fonts[index].font.Render(m.text)))
+	return fmt.Sprintf("%s\n%s", fname.Render(name), output.Render(rendered))
 }
 
 func (m *model) toggleFocusState() {
@@ -293,10 +312,8 @@ func (m model) renderPreviews() string {
 		for i := start; i <= end; i++ {
 			preview := m.fontViewOG(i)
 
-			// Clip the first item if needed
 			if i == start && startOff > 0 {
 				lines := strings.Split(preview, "\n")
-				// Cap startOff to the number of lines to prevent out-of-bounds slice
 				safeOffset := startOff
 				if safeOffset > len(lines) {
 					safeOffset = len(lines)

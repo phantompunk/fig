@@ -19,7 +19,7 @@ func (m model) textInputBox() string {
 }
 
 func (m model) helpBox() string {
-	controls := "↑/k:up ↓/j:down i:text q:quit"
+	controls := "↑/k:up ↓/j:down i:text a:align q:quit"
 	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.fonts))
 	spacingWidth := m.width - gloss.Width(controls) - gloss.Width(list) - 2
 	if spacingWidth < 0 {
@@ -56,7 +56,7 @@ func (m model) statusView() string {
 	if len(m.fonts) == 0 || m.cursor >= len(m.fonts) {
 		status = fmt.Sprintf(" Count %d, selected: %d", len(m.fonts), m.cursor)
 	} else {
-		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.fonts), m.cursor, m.fonts[m.cursor].font.Name(), m.fonts[m.cursor].height, m.viewHeight)
+		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.fonts), m.cursor, m.fonts[m.cursor].name, m.fonts[m.cursor].height, m.viewHeight)
 	}
 	return gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(status)
 }

@@ -68,6 +68,21 @@ func (e *Engine) Render(text string, opts RenderOptions) (string, error) {
 	return out, nil
 }
 
+// ListFonts returns the names of all fonts available across the engine's loaders.
+func (e *Engine) ListFonts() ([]string, error) {
+	return e.registry.Available()
+}
+
+// FontHeight returns the line height of the named font. The font is loaded and
+// cached on first call; subsequent calls are served from the registry cache.
+func (e *Engine) FontHeight(name string) (int, error) {
+	f, err := e.registry.Get(name)
+	if err != nil {
+		return 0, err
+	}
+	return f.Height(), nil
+}
+
 // glyphWidth returns the natural width of a glyph (max row length, including
 // trailing zeros), which is used for full-width placement.
 func glyphWidth(glyph [][]rune) int {
