@@ -7,30 +7,47 @@ import (
 	gloss "charm.land/lipgloss/v2"
 )
 
-func (m model) textInputBox() string {
-	var b strings.Builder
-	b.WriteString("Input")
-	b.WriteString(m.textInput.View())
+func (m model) topBar() string {
+	appName := gloss.NewStyle().Bold(true).Foreground(gloss.Color("#C4C7D4")).Render("fig")
 
-	if m.focusState == focusTextInput {
-		return m.selectedBoxStyle().Render(b.String())
+	var tags []string
+	for _, tag := range tagCycle {
+		if tag == m.activeTag {
+			tags = append(tags, gloss.NewStyle().Foreground(gloss.Color("#C4C7D4")).Bold(true).Render("["+tag+"]"))
+		} else {
+			tags = append(tags, gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(tag))
+		}
 	}
-	return m.boxStyle().Render(b.String())
-}
+	tagSection := strings.Join(tags, " ")
 
-func (m model) filterBox() string {
-	var b strings.Builder
-	b.WriteString("Filter /")
-	b.WriteString(m.filterInput.View())
-	return m.selectedBoxStyle().Render(b.String())
+	sep := gloss.NewStyle().Foreground(gloss.Color("#626784")).Render("|")
+	var textLabel string
+	if m.focusState == focusTextInput {
+		textLabel = gloss.NewStyle().Foreground(gloss.Color("#C4C7D4")).Bold(true).Render("text")
+	} else {
+		textLabel = gloss.NewStyle().Foreground(gloss.Color("#626784")).Render("text")
+	}
+	right := sep + "   " + textLabel + m.textInput.View()
+
+	leftPart := appName + "   " + tagSection
+	// spacingWidth := max(m.width-gloss.Width(leftPart)-gloss.Width(right)-2, 1)
+	spacing := strings.Repeat(" ", 3)
+
+	content := leftPart + spacing + right
+	bar := gloss.NewStyle().Padding(0, 1, 0, 1).Render(content)
+	underline := gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(strings.Repeat("‾", m.width))
+	return gloss.JoinVertical(gloss.Left, bar, underline)
 }
 
 func (m model) helpBox() string {
 	var controls string
-	if m.focusState == focusFilter {
-		controls = "enter:confirm  esc:clear"
-	} else {
-		controls = "↑/k:up ↓/j:down gg:start G:end ^U:pgup ^D:pgdn tab:tag /:filter i:text a:align c:copy q:quit"
+	switch m.focusState {
+	case focusFilter:
+		controls = "Enter apply   Esc cancel"
+	case focusTextInput:
+		controls = "Enter apply   Esc cancel   ^u clear"
+	default:
+		controls = "↑/k ↓/j navigate   / filter   i edit text   f favorite   c copy   q quit" // f favorite   ? help
 	}
 	list := fmt.Sprintf("%d/%d  ", m.cursor+1, len(m.filteredFonts))
 	spacingWidth := max(m.width-gloss.Width(controls)-gloss.Width(list)-2, 0)
@@ -46,6 +63,7 @@ func (m model) helpBox() string {
 
 func (m model) selectedBoxStyle() gloss.Style {
 	return m.boxStyle().
+		// Border(gloss.RoundedBorder()).
 		BorderForeground(gloss.Color("#C4C7D4")).
 		Foreground(gloss.Color("#C4C7D4")).
 		Bold(true)
@@ -54,26 +72,20 @@ func (m model) selectedBoxStyle() gloss.Style {
 func (m model) boxStyle() gloss.Style {
 	return gloss.NewStyle().
 		Width(m.width-4).
-		Border(gloss.RoundedBorder()).
-		BorderForeground(gloss.Color("#626784")).
+		// Border(gloss.HiddenBorder()).
+		// BorderForeground(gloss.Color("#626784")).
 		Padding(0, 1, 0, 1).
 		Foreground(gloss.Color("#626784"))
 }
 
 func (m model) statusView() string {
 	var status string
-	if m.copyMsg != "" {
+	if m.focusState == focusFilter {
+		status = " filter" + m.filterInput.View()
+	} else if m.copyMsg != "" {
 		status = " " + m.copyMsg
-	} else if m.filterQuery != "" && m.activeTag != "all" {
-		status = fmt.Sprintf(" [%s]  Filter: %q — %d/%d fonts", m.activeTag, m.filterQuery, len(m.filteredFonts), len(m.fonts))
-	} else if m.activeTag != "all" {
-		status = fmt.Sprintf(" [%s] — %d/%d fonts", m.activeTag, len(m.filteredFonts), len(m.fonts))
 	} else if m.filterQuery != "" {
-		status = fmt.Sprintf(" Filter: %q — %d/%d fonts", m.filterQuery, len(m.filteredFonts), len(m.fonts))
-	} else if len(m.filteredFonts) == 0 || m.cursor >= len(m.filteredFonts) {
-		status = fmt.Sprintf(" Count %d, selected: %d", len(m.filteredFonts), m.cursor)
-	} else {
-		status = fmt.Sprintf(" Count %d, selected: %d, %s, height: %d, vh: %d", len(m.filteredFonts), m.cursor, m.filteredFonts[m.cursor].name, m.filteredFonts[m.cursor].height, m.viewHeight)
+		status = fmt.Sprintf(" filter: %q — %d/%d fonts", m.filterQuery, len(m.filteredFonts), len(m.fonts))
 	}
 	return gloss.NewStyle().Foreground(gloss.Color("#626784")).Render(status)
 }

@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"slices"
 	"fmt"
+	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -54,8 +54,9 @@ type model struct {
 
 func newModel() *model {
 	textInput := textinput.New()
+	textInput.Prompt = ":"
 	filterInput := textinput.New()
-	filterInput.Placeholder = "filter fonts..."
+	filterInput.Prompt = ":"
 	tm, err := font.LoadTagMap(assets.FontsYAML)
 	if err != nil {
 		tm = font.TagMap{}
@@ -76,7 +77,7 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) View() tea.View {
-	inputBox := m.textInputBox()
+	inputBox := m.topBar()
 	status := m.statusView()
 	helpBox := m.helpBox()
 
@@ -98,27 +99,18 @@ func (m model) View() tea.View {
 	footer := gloss.JoinVertical(gloss.Left, status, helpBox)
 
 	const (
-		inputBoxHeight  = 3
-		filterBoxHeight = 3
-		statusHeight    = 1
-		helpBoxHeight   = 1
+		inputBoxHeight = 2
+		statusHeight   = 1
+		helpBoxHeight  = 1
 	)
 	footerHeight := statusHeight + helpBoxHeight
 	contentHeight := m.height - inputBoxHeight - footerHeight
-	if m.focusState == focusFilter {
-		contentHeight -= filterBoxHeight
-	}
 
 	mainContent := gloss.NewStyle().
 		Height(contentHeight).
 		Render(previewContent)
 
-	var parts []string
-	parts = append(parts, inputBox)
-	if m.focusState == focusFilter {
-		parts = append(parts, m.filterBox())
-	}
-	parts = append(parts, mainContent, footer)
+	parts := []string{inputBox, mainContent, footer}
 	content := gloss.JoinVertical(gloss.Left, parts...)
 
 	v := tea.NewView(content)
@@ -147,6 +139,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filterInput.Blur()
 				m.filterQuery = ""
 				m.applyFilter()
+				return m, nil
+			}
+			if m.focusState == focusTextInput {
+				m.focusState = focusFontList
+				m.textInput.Blur()
+				m.textInput.Reset()
+				m.text = ""
 				return m, nil
 			}
 			return m, tea.Quit
@@ -195,13 +194,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ensureSelectedVisible()
 			}
 
+		case "shift+tab":
+			if m.focusState == focusFontList {
+				m.activeTag = prevTag(m.activeTag)
+				m.applyFilter()
+				m.cursor = 0
+				m.ensureSelectedVisible()
+			}
+
 		case "/":
 			if m.focusState == focusFontList {
 				m.focusState = focusFilter
 				m.filterInput.SetValue("")
 				m.filterQuery = ""
-				m.filterInput.Focus()
-				return m, nil
+				cmd = m.filterInput.Focus()
+				return m, cmd
 			}
 
 		case "c":
@@ -221,14 +228,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "i":
 			if m.focusState == focusFontList {
-				m.toggleFocusState()
-				return m, nil
+				return m, m.toggleFocusState()
 			}
 
 		case "enter":
-			if m.focusState == focusTextInput {
-				m.toggleFocusState()
-			} else if m.focusState == focusFilter {
+			switch m.focusState {
+			case focusTextInput:
+				return m, m.toggleFocusState()
+			case focusFilter:
 				m.focusState = focusFontList
 				m.filterInput.Blur()
 				return m, nil
@@ -248,9 +255,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		const (
-			inputBoxHeight = 3
+			inputBoxHeight = 2
 			statusHeight   = 1
-			helpBoxHeight  = 2
+			helpBoxHeight  = 1
 		)
 		m.viewHeight = msg.Height - inputBoxHeight - statusHeight - helpBoxHeight
 		if m.viewHeight < 5 {
@@ -259,12 +266,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.focusState == focusTextInput {
+	switch m.focusState {
+	case focusTextInput:
 		if m.textInput, cmd = m.textInput.Update(msg); cmd != nil {
 			m.text = m.textInput.Value()
 			return m, cmd
 		}
-	} else if m.focusState == focusFilter {
+	case focusFilter:
 		if m.filterInput, cmd = m.filterInput.Update(msg); cmd != nil {
 			newQuery := m.filterInput.Value()
 			if newQuery != m.filterQuery {
@@ -313,6 +321,15 @@ func nextTag(current string) string {
 		}
 	}
 	return tagCycle[0]
+}
+
+func prevTag(current string) string {
+	for i, t := range tagCycle {
+		if t == current {
+			return tagCycle[(i-1+len(tagCycle))%len(tagCycle)]
+		}
+	}
+	return tagCycle[len(tagCycle)-1]
 }
 
 func (m *model) visibleRange() (start, startOffset, end int) {
@@ -477,15 +494,16 @@ func (m model) renderedOutput() string {
 	return out
 }
 
-func (m *model) toggleFocusState() {
+func (m *model) toggleFocusState() tea.Cmd {
 	switch m.focusState {
 	case focusTextInput:
 		m.focusState = focusFontList
 		m.textInput.Blur()
 	case focusFontList:
 		m.focusState = focusTextInput
-		m.textInput.Focus()
+		return m.textInput.Focus()
 	}
+	return nil
 }
 
 func Start() error {
